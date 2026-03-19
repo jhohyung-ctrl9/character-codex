@@ -264,7 +264,10 @@
     <input class="search-box" id="search" placeholder="이름 또는 칭호 검색..." oninput="renderGrid()" />
   </div>
   <div class="keyword-wrap">
-    <input class="keyword-box" id="keyword-input" placeholder="🔍 스킬 설명 키워드 하이라이트..." oninput="onKeywordInput()" />
+    <input class="keyword-box" id="keyword-input" placeholder="🔍 스킬 설명 키워드 하이라이트..."
+      oninput="if(!isComposing)onKeywordInput()"
+      oncompositionstart="isComposing=true"
+      oncompositionend="isComposing=false;onKeywordInput()" />
   </div>
   <button class="tag-popup-btn" id="tag-popup-trigger" onclick="toggleTagPopup(event)">태그 목록 ▾</button>
   <button class="tag-popup-btn" onclick="openTagDelete()" style="color:var(--red);border-color:rgba(255,107,107,0.4)">태그 지우기</button>
@@ -906,6 +909,7 @@ async function saveChar(){
 
 /* ── 키워드 하이라이트 & 자동 태그 ── */
 let currentKeyword = '';
+let isComposing = false;
 
 // 스킬 설명 렌더링: 태그 배지 + 키워드 하이라이트 동시 적용
 function renderSkillDesc(text){
