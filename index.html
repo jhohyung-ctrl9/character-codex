@@ -25,12 +25,16 @@
   .header-count { font-size: 12px; color: var(--text3); }
 
   /* TOOLBAR */
-  .toolbar { max-width: 1100px; margin: 0 auto; padding: 28px 24px 0; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .toolbar { max-width: 1100px; margin: 0 auto; padding: 28px 24px 0; display: flex; flex-direction: column; gap: 8px; }
+  .toolbar-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
   .search-wrap { flex: 1; min-width: 200px; position: relative; }
   .search-wrap svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); opacity: 0.4; }
   .search-box { width: 100%; padding: 9px 12px 9px 36px; background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.2s; }
   .search-box:focus { border-color: var(--accent2); }
   .search-box::placeholder { color: var(--text3); }
+  .filter-select { padding: 7px 28px 7px 10px; font-size: 13px; font-family: inherit; border: 0.5px solid var(--border); border-radius: var(--radius); background: var(--bg2); color: var(--text2); cursor: pointer; transition: all 0.15s; outline: none; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%235a5770' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; }
+  .filter-select:focus { border-color: var(--accent2); color: var(--text); }
+  .filter-select option { background: var(--bg2); color: var(--text); }
   .filters { display: flex; gap: 6px; flex-wrap: wrap; }
   .filter-btn { padding: 7px 14px; font-size: 13px; font-family: inherit; border: 0.5px solid var(--border); border-radius: 20px; background: transparent; color: var(--text2); cursor: pointer; transition: all 0.15s; }
   .filter-btn:hover { border-color: var(--border2); color: var(--text); }
@@ -256,24 +260,48 @@
 </header>
 
 <div class="toolbar">
-  <div class="search-wrap">
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-      <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/>
-      <line x1="9.5" y1="9.5" x2="13" y2="13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-    </svg>
-    <input class="search-box" id="search" placeholder="이름 또는 칭호 검색..." oninput="renderGrid()" />
+  <!-- 1행: 검색 + 버튼들 -->
+  <div class="toolbar-row">
+    <div class="search-wrap">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/>
+        <line x1="9.5" y1="9.5" x2="13" y2="13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+      </svg>
+      <input class="search-box" id="search" placeholder="이름 또는 칭호 검색..." oninput="renderGrid()" />
+    </div>
+    <button class="tag-popup-btn" id="tag-popup-trigger" onclick="toggleTagPopup(event)">태그 목록 ▾</button>
+    <button class="tag-popup-btn" onclick="openTagDelete()" style="color:var(--red);border-color:rgba(255,107,107,0.4)">태그 지우기</button>
+    <button class="btn-ghost" onclick="openImport()" style="white-space:nowrap">엑셀 가져오기</button>
+    <button class="add-btn" onclick="openAdd()">+ 추가</button>
   </div>
-  <div class="keyword-wrap">
-    <input class="keyword-box" id="keyword-input" placeholder="🔍 스킬 설명 키워드 하이라이트..."
-      oninput="onKeywordHighlight()"
-      oncompositionstart="isComposing=true"
-      oncompositionend="isComposing=false;onKeywordHighlight()" />
+  <!-- 2행: 드롭다운 필터 + 키워드 + 태그 -->
+  <div class="toolbar-row">
+    <select class="filter-select" id="filter-class" onchange="renderGrid()">
+      <option value="">클래스 전체</option>
+      <option value="디펜더">디펜더</option>
+      <option value="힐러">힐러</option>
+      <option value="버퍼">버퍼</option>
+      <option value="어쌔신">어쌔신</option>
+      <option value="스트라이커">스트라이커</option>
+      <option value="세이지">세이지</option>
+      <option value="슈터">슈터</option>
+    </select>
+    <select class="filter-select" id="filter-attribute" onchange="renderGrid()">
+      <option value="">속성 전체</option>
+      <option value="과거">과거</option>
+      <option value="현재">현재</option>
+      <option value="미래">미래</option>
+      <option value="시초">시초</option>
+      <option value="종언">종언</option>
+    </select>
+    <div class="keyword-wrap">
+      <input class="keyword-box" id="keyword-input" placeholder="🔍 스킬 설명 키워드 하이라이트..."
+        oninput="onKeywordHighlight()"
+        oncompositionstart="isComposing=true"
+        oncompositionend="isComposing=false;onKeywordHighlight()" />
+    </div>
+    <div class="filters" id="filters"></div>
   </div>
-  <button class="tag-popup-btn" id="tag-popup-trigger" onclick="toggleTagPopup(event)">태그 목록 ▾</button>
-  <button class="tag-popup-btn" onclick="openTagDelete()" style="color:var(--red);border-color:rgba(255,107,107,0.4)">태그 지우기</button>
-  <div class="filters" id="filters"></div>
-  <button class="btn-ghost" onclick="openImport()" style="white-space:nowrap">엑셀 가져오기</button>
-  <button class="add-btn" onclick="openAdd()">+ 추가</button>
 </div>
 
 <!-- TAG POPUP -->
@@ -549,10 +577,14 @@ function setFilter(f,btn){
 }
 function getFiltered(){
   const q=document.getElementById('search').value.toLowerCase().trim();
+  const fc=document.getElementById('filter-class')?.value||'';
+  const fa=document.getElementById('filter-attribute')?.value||'';
   return chars.filter(c=>{
     const mq=!q||c.name.toLowerCase().includes(q)||(c.title||'').toLowerCase().includes(q);
     const mf=activeFilter==='all'||c.tags.includes(activeFilter);
-    return mq&&mf;
+    const mc=!fc||(c.charClass||'')=== fc;
+    const ma=!fa||(c.attribute||'')=== fa;
+    return mq&&mf&&mc&&ma;
   });
 }
 function renderGrid(){
