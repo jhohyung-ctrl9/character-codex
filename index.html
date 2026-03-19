@@ -264,11 +264,10 @@
     <input class="search-box" id="search" placeholder="이름 또는 칭호 검색..." oninput="renderGrid()" />
   </div>
   <div class="keyword-wrap">
-    <input class="keyword-box" id="keyword-input" placeholder="🔍 스킬 설명 키워드 하이라이트 (엔터로 태그 추가)..."
+    <input class="keyword-box" id="keyword-input" placeholder="🔍 스킬 설명 키워드 하이라이트..."
       oninput="onKeywordHighlight()"
-      onkeydown="if(event.key==='Enter'&&!isComposing)onKeywordAddTag()"
       oncompositionstart="isComposing=true"
-      oncompositionend="isComposing=false" />
+      oncompositionend="isComposing=false;onKeywordHighlight()" />
   </div>
   <button class="tag-popup-btn" id="tag-popup-trigger" onclick="toggleTagPopup(event)">태그 목록 ▾</button>
   <button class="tag-popup-btn" onclick="openTagDelete()" style="color:var(--red);border-color:rgba(255,107,107,0.4)">태그 지우기</button>
@@ -912,7 +911,7 @@ async function saveChar(){
 let currentKeyword = '';
 let isComposing = false;
 
-// 입력 중 실시간 하이라이트만 (태그 추가 없음)
+// 입력 중 실시간 하이라이트만
 function onKeywordHighlight(){
   currentKeyword = document.getElementById('keyword-input').value.trim();
   document.querySelectorAll('.skill-desc').forEach(el=>{
@@ -923,35 +922,6 @@ function onKeywordHighlight(){
   });
 }
 
-// 엔터 눌렀을 때만 태그 자동 추가
-function onKeywordAddTag(){
-  currentKeyword = document.getElementById('keyword-input').value.trim();
-  if(!currentKeyword) return;
-  let changed = false;
-  chars.forEach(c=>{
-    const skills = c.skills || {};
-    const hasKw = SKILL_TYPES.some(st=>{
-      const sk = skills[st.key];
-      if(!sk) return false;
-      const descs = Array.isArray(sk.desc) ? sk.desc : [sk.desc||''];
-      return descs.some(d=>d && d.includes(currentKeyword));
-    });
-    if(hasKw && !c.tags.includes(currentKeyword)){
-      c.tags = [...c.tags, currentKeyword];
-      changed = true;
-    }
-  });
-  if(changed){ saveChars(); renderFilters(); renderGrid(); }
-  // 하이라이트 갱신
-  document.querySelectorAll('.skill-desc').forEach(el=>{
-    const raw = el.dataset.raw;
-    if(raw !== undefined){
-      el.innerHTML = raw ? renderSkillDesc(raw) : '<span class="empty">설명 없음</span>';
-    }
-  });
-}
-
-// 구버전 호환용 (혹시 참조되는 곳 있으면)
 function onKeywordInput(){ onKeywordHighlight(); }
 function renderSkillDesc(text){
   if(!text) return '';
