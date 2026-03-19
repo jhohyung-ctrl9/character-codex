@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>캐릭터 도감</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0e0e12; --bg2: #16161d; --bg3: #1e1e28;
+    --border: rgba(255,255,255,0.08); --border2: rgba(255,255,255,0.15);
+    --text: #e8e6f0; --text2: #9a97aa; --text3: #5a5770;
+    --accent: #b48eff; --accent2: #7c5cbf; --accent-glow: rgba(180,142,255,0.15);
+    --red: #ff6b6b; --gold: #f0c060; --teal: #5dd6b5;
+    --skill-normal: #6b7280; --skill-quick: #38bdf8; --skill-active: #a78bfa; --skill-ult: #f59e0b;
+    --radius: 10px; --radius-lg: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* HEADER */
+  header { border-bottom: 0.5px solid var(--border); padding: 0 32px; display: flex; align-items: center; justify-content: space-between; height: 60px; position: sticky; top: 0; background: rgba(14,14,18,0.92); backdrop-filter: blur(12px); z-index: 50; }
+  .logo { font-family: 'Noto Serif KR', serif; font-size: 18px; font-weight: 600; color: var(--accent); letter-spacing: 0.04em; }
+  .header-count { font-size: 12px; color: var(--text3); }
+
+  /* TOOLBAR */
+  .toolbar { max-width: 1100px; margin: 0 auto; padding: 28px 24px 0; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .search-wrap { flex: 1; min-width: 200px; position: relative; }
+  .search-wrap svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); opacity: 0.4; }
+  .search-box { width: 100%; padding: 9px 12px 9px 36px; background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.2s; }
+  .search-box:focus { border-color: var(--accent2); }
+  .search-box::placeholder { color: var(--text3); }
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; }
+  .filter-btn { padding: 7px 14px; font-size: 13px; font-family: inherit; border: 0.5px solid var(--border); border-radius: 20px; background: transparent; color: var(--text2); cursor: pointer; transition: all 0.15s; }
+  .filter-btn:hover { border-color: var(--border2); color: var(--text); }
+  .filter-btn.active { background: var(--accent-glow); border-color: var(--accent2); color: var(--accent); }
+  .add-btn { padding: 8px 18px; font-size: 13px; font-family: inherit; background: var(--accent2); color: #fff; border: none; border-radius: var(--radius); cursor: pointer; transition: opacity 0.15s; white-space: nowrap; }
+  .add-btn:hover { opacity: 0.85; }
+
+  /* GRID */
+  .grid-wrap { max-width: 1100px; margin: 0 auto; padding: 20px 24px 60px; }
+  .result-info { font-size: 12px; color: var(--text3); margin-bottom: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 14px; }
+
+  /* CARD */
+  .card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; cursor: pointer; transition: border-color 0.2s, transform 0.2s, opacity 0.2s; }
+  .card:hover { border-color: var(--accent2); transform: translateY(-3px); }
+  .card.dragging { opacity: 0.35; transform: scale(0.97); cursor: grabbing; }
+  .card.drag-over { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent2); transform: translateY(-3px); }
+  .card-img { width: 100%; aspect-ratio: 5 / 12; background: var(--bg3); display: flex; align-items: flex-start; justify-content: center; overflow: hidden; position: relative; }
+  .card-img img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+  .card-img-placeholder { font-size: 52px; opacity: 0.3; }
+  .card-rarity { position: absolute; top: 8px; right: 8px; font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 700; letter-spacing: 0.05em; }
+  .rarity-SSR { background: rgba(240,192,96,0.2); color: var(--gold); border: 0.5px solid rgba(240,192,96,0.4); }
+  .rarity-SR  { background: rgba(180,142,255,0.2); color: var(--accent); border: 0.5px solid rgba(180,142,255,0.4); }
+  .rarity-R   { background: rgba(93,214,181,0.15); color: var(--teal); border: 0.5px solid rgba(93,214,181,0.35); }
+  .card-body { padding: 10px 12px 12px; }
+  .card-name { font-size: 15px; font-weight: 700; margin-bottom: 3px; }
+  .card-title { font-size: 12px; color: var(--text2); }
+  .empty-state { grid-column: 1/-1; text-align: center; padding: 80px 20px; color: var(--text3); font-size: 14px; }
+
+  /* OVERLAY */
+  .overlay { display: none; position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 16px; }
+  .overlay.open { display: flex; }
+
+  /* DETAIL MODAL — split layout */
+  .detail-modal {
+    background: var(--bg2);
+    border: 0.5px solid var(--border2);
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 960px;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .detail-modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 0.5px solid var(--border);
+    flex-shrink: 0;
+  }
+  .detail-modal-body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* LEFT — sticky image panel */
+  .detail-left {
+    width: 280px;
+    flex-shrink: 0;
+    padding: 20px 0 20px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+  }
+  .detail-char-img {
+    width: 260px;
+    height: 490px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--bg3);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .detail-char-img img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+  .detail-img-placeholder { font-size: 56px; opacity: 0.25; }
+  .detail-rarity-badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 700; }
+  .char-meta-panel { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+  .char-meta-row { display: flex; flex-direction: column; gap: 2px; }
+  .char-meta-label { font-size: 10px; color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; }
+  .char-meta-value { font-size: 13px; font-weight: 500; color: var(--text); }
+  .char-meta-empty { color: var(--text3); font-style: italic; }
+
+  /* RIGHT — scrollable content */
+  .detail-right {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
+    padding: 20px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border2) transparent;
+  }
+
+  .detail-name { font-size: 22px; font-weight: 700; margin-bottom: 3px; }
+  .detail-subtitle { font-size: 13px; color: var(--text2); margin-bottom: 10px; }
+  .detail-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
+  .detail-tag { font-size: 12px; padding: 3px 10px; border-radius: 20px; background: rgba(255,255,255,0.05); color: var(--text2); border: 0.5px solid var(--border); }
+  .section-label { font-size: 11px; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; font-weight: 700; }
+
+  /* SKILLS */
+  .skill-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+  .skill-card { background: var(--bg3); border: 0.5px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .skill-header { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; user-select: none; }
+  .skill-icon { width: 42px; height: 42px; border-radius: 8px; background: var(--bg2); border: 0.5px solid var(--border); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+  .skill-icon img { width: 100%; height: 100%; object-fit: cover; }
+  .skill-icon-ph { font-size: 18px; opacity: 0.35; }
+  .skill-info { flex: 1; min-width: 0; }
+  .skill-type-badge { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; padding: 1px 7px; border-radius: 20px; display: inline-block; margin-bottom: 3px; }
+  .badge-normal { background: rgba(107,114,128,0.2); color: var(--skill-normal); border: 0.5px solid rgba(107,114,128,0.3); }
+  .badge-quick  { background: rgba(56,189,248,0.15); color: var(--skill-quick);  border: 0.5px solid rgba(56,189,248,0.3); }
+  .badge-active { background: rgba(167,139,250,0.15); color: var(--skill-active); border: 0.5px solid rgba(167,139,250,0.3); }
+  .badge-ult    { background: rgba(245,158,11,0.15);  color: var(--skill-ult);    border: 0.5px solid rgba(245,158,11,0.3); }
+  .skill-name { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .skill-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .lv-stepper { display: flex; align-items: center; gap: 4px; }
+  .lv-btn { width: 24px; height: 24px; border-radius: 6px; background: var(--bg2); border: 0.5px solid var(--border); color: var(--text2); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
+  .lv-btn:hover { background: var(--border); color: var(--text); }
+  .lv-display { font-size: 11px; font-weight: 700; color: var(--accent); min-width: 28px; text-align: center; }
+  .skill-chevron { font-size: 16px; color: var(--text3); transition: transform 0.2s; line-height: 1; }
+  .skill-chevron.open { transform: rotate(90deg); }
+  .skill-desc-wrap { display: none; padding: 0 12px 12px; }
+  .skill-desc-wrap.open { display: block; }
+  .skill-desc { font-size: 13px; color: var(--text2); line-height: 1.75; background: var(--bg2); border-radius: 8px; padding: 10px 12px; border: 0.5px solid var(--border); white-space: pre-wrap; min-height: 48px; }
+  .skill-desc.empty { color: var(--text3); font-style: italic; }
+
+  /* STATS */
+  .stats-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 16px; }
+  .stat-card { background: var(--bg3); border-radius: var(--radius); padding: 10px; text-align: center; }
+  .stat-card-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
+  .stat-card-val { font-size: 20px; font-weight: 700; }
+  .bar-row { margin-bottom: 7px; }
+  .bar-header { display: flex; justify-content: space-between; font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+  .bar-bg { height: 5px; background: var(--bg3); border-radius: 10px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 10px; background: var(--accent); transition: width 0.6s; }
+
+  /* MODAL FOOTER */
+  .detail-modal-footer { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 20px; border-top: 0.5px solid var(--border); flex-shrink: 0; }
+  .btn-ghost { padding: 8px 16px; font-size: 13px; font-family: inherit; border: 0.5px solid var(--border2); border-radius: var(--radius); background: transparent; color: var(--text2); cursor: pointer; transition: all 0.15s; }
+  .btn-ghost:hover { color: var(--text); border-color: var(--text3); }
+  .btn-danger { padding: 8px 16px; font-size: 13px; font-family: inherit; border: 0.5px solid rgba(255,107,107,0.4); border-radius: var(--radius); background: transparent; color: var(--red); cursor: pointer; transition: all 0.15s; }
+  .btn-danger:hover { background: rgba(255,107,107,0.1); }
+
+  /* FORM MODAL */
+  .modal { background: var(--bg2); border: 0.5px solid var(--border2); border-radius: var(--radius-lg); width: 100%; max-width: 600px; max-height: 92vh; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border2) transparent; }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 0.5px solid var(--border); position: sticky; top: 0; background: var(--bg2); z-index: 1; }
+  .modal-title { font-size: 16px; font-weight: 700; }
+  .close-btn { width: 30px; height: 30px; background: var(--bg3); border: 0.5px solid var(--border); border-radius: 8px; color: var(--text2); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
+  .close-btn:hover { background: var(--border); }
+  .modal-body { padding: 20px; }
+
+  /* FORM */
+  .form-row { margin-bottom: 16px; }
+  .form-label { font-size: 12px; color: var(--text2); margin-bottom: 6px; display: block; font-weight: 500; }
+  .form-input, .form-select, .form-textarea { width: 100%; padding: 9px 12px; background: var(--bg3); border: 0.5px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.2s; }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent2); }
+  .form-select option { background: var(--bg2); }
+  .form-textarea { resize: vertical; min-height: 72px; line-height: 1.65; }
+  .stats-form { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .img-upload-area { width: 100%; padding: 22px; border: 0.5px dashed var(--border2); border-radius: var(--radius); background: var(--bg3); color: var(--text3); font-size: 13px; cursor: pointer; text-align: center; transition: border-color 0.2s, background 0.2s; }
+  .img-upload-area:hover { border-color: var(--accent2); background: var(--accent-glow); color: var(--text2); }
+  .img-preview { width: 100%; height: 140px; object-fit: cover; border-radius: var(--radius); margin-top: 10px; display: none; }
+  .form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+  .form-section-title { font-size: 13px; font-weight: 700; color: var(--text); margin: 24px 0 14px; padding-bottom: 8px; border-bottom: 0.5px solid var(--border); }
+  .skill-form-card { background: var(--bg3); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
+  .skill-form-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .skill-icon-upload { width: 50px; height: 50px; border-radius: 10px; background: var(--bg2); border: 0.5px dashed var(--border2); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; overflow: hidden; transition: border-color 0.2s; font-size: 20px; color: var(--text3); }
+  .skill-icon-upload:hover { border-color: var(--accent2); }
+  .skill-icon-upload img { width: 100%; height: 100%; object-fit: cover; }
+  .skill-form-meta { flex: 1; }
+  .lv-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+  .lv-tab { width: 30px; height: 26px; border-radius: 6px; font-size: 11px; font-weight: 700; font-family: inherit; border: 0.5px solid var(--border); background: var(--bg2); color: var(--text3); cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; }
+  .lv-tab:hover { color: var(--text2); border-color: var(--border2); }
+  .lv-tab.active { background: var(--accent-glow); border-color: var(--accent2); color: var(--accent); }
+
+  /* RESPONSIVE */
+  @media (max-width: 1100px) { .grid { grid-template-columns: repeat(6, 1fr); } }
+  @media (max-width: 768px)  { .grid { grid-template-columns: repeat(4, 1fr); gap: 10px; } }
+  @media (max-width: 600px) {
+    header { padding: 0 16px; }
+    .toolbar, .grid-wrap { padding-left: 16px; padding-right: 16px; }
+    .stats-form { grid-template-columns: 1fr 1fr; }
+    .grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .detail-modal { max-width: 100%; }
+    .detail-left { width: 130px; padding: 14px 0 14px 14px; }
+    .detail-char-img { width: 116px; height: 218px; }
+    .detail-right { padding: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">캐릭터 도감</div>
+  <div class="header-count" id="header-count"></div>
+</header>
+
+<div class="toolbar">
+  <div class="search-wrap">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/>
+      <line x1="9.5" y1="9.5" x2="13" y2="13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+    </svg>
+    <input class="search-box" id="search" placeholder="이름 또는 칭호 검색..." oninput="renderGrid()" />
+  </div>
+  <div class="filters" id="filters"></div>
+  <button class="btn-ghost" onclick="openImport()" style="white-space:nowrap">엑셀 가져오기</button>
+  <button class="add-btn" onclick="openAdd()">+ 추가</button>
+</div>
+
+<div class="grid-wrap">
+  <div class="result-info" id="result-info"></div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<!-- DETAIL OVERLAY -->
+<div class="overlay" id="detail-overlay">
+  <div class="detail-modal">
+    <div class="detail-modal-header">
+      <span class="modal-title" id="detail-title">캐릭터 정보</span>
+      <button class="close-btn" onclick="closeDetail()">✕</button>
+    </div>
+    <div class="detail-modal-body">
+      <!-- 왼쪽 고정 이미지 -->
+      <div class="detail-left" id="detail-left"></div>
+      <!-- 오른쪽 스크롤 영역 -->
+      <div class="detail-right" id="detail-right"></div>
+    </div>
+    <div class="detail-modal-footer">
+      <button class="btn-danger" id="del-btn">삭제</button>
+      <button class="btn-ghost" id="edit-btn">수정</button>
+    </div>
+  </div>
+</div>
+
+<!-- FORM OVERLAY -->
+<div class="overlay" id="form-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="form-title">새 캐릭터</span>
+      <button class="close-btn" onclick="closeForm()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-section-title" style="margin-top:0">기본 정보</div>
+      <div class="form-row"><label class="form-label">이름 *</label><input class="form-input" id="f-name" placeholder="캐릭터 이름"/></div>
+      <div class="form-row"><label class="form-label">캐릭터 ID <span style="color:var(--text3);font-weight:400">(엑셀 9자리 ID는 자동 입력, 8자리는 직접 입력)</span></label><input class="form-input" id="f-charid" placeholder="예: 1030"/></div>
+      <div class="form-row"><label class="form-label">칭호</label><input class="form-input" id="f-title" placeholder="예: 불꽃의 기사"/></div>
+      <div class="form-row">
+        <label class="form-label">등급</label>
+        <select class="form-select" id="f-rarity">
+          <option value="">없음</option><option value="SSR">SSR</option><option value="SR">SR</option><option value="R">R</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">클래스</label>
+        <select class="form-select" id="f-class">
+          <option value="">없음</option>
+          <option value="디펜더">디펜더</option>
+          <option value="힐러">힐러</option>
+          <option value="버퍼">버퍼</option>
+          <option value="어쌔신">어쌔신</option>
+          <option value="스트라이커">스트라이커</option>
+          <option value="세이지">세이지</option>
+          <option value="슈터">슈터</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">캐릭터 속성</label>
+        <select class="form-select" id="f-attribute">
+          <option value="">없음</option>
+          <option value="과거">과거</option>
+          <option value="현재">현재</option>
+          <option value="미래">미래</option>
+          <option value="시초">시초</option>
+          <option value="종언">종언</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">소속</label>
+        <input class="form-input" id="f-affiliation" placeholder="소속 입력"/>
+      </div>
+      <div class="form-row"><label class="form-label">태그 (쉼표로 구분)</label><input class="form-input" id="f-tags" placeholder="예: 전사, 인간, 주인공"/></div>
+      <div class="form-row">
+        <label class="form-label">스탯</label>
+        <div class="stats-form">
+          <div><label class="form-label">공격력</label><input class="form-input" id="f-atk" type="number" placeholder="0" min="0"/></div>
+          <div><label class="form-label">방어력</label><input class="form-input" id="f-def" type="number" placeholder="0" min="0"/></div>
+          <div><label class="form-label">HP</label><input class="form-input" id="f-hp" type="number" placeholder="0" min="0"/></div>
+          <div><label class="form-label">속도</label><input class="form-input" id="f-spd" type="number" placeholder="0" min="0"/></div>
+          <div><label class="form-label">마력</label><input class="form-input" id="f-mag" type="number" placeholder="0" min="0"/></div>
+          <div><label class="form-label">행운</label><input class="form-input" id="f-lck" type="number" placeholder="0" min="0"/></div>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">캐릭터 이미지</label>
+        <div class="img-upload-area" onclick="document.getElementById('f-img-input').click()">클릭해서 이미지 업로드<span style="font-size:11px;margin-top:4px;display:block">JPG · PNG · GIF · WEBP</span></div>
+        <input type="file" id="f-img-input" accept="image/*" style="display:none" onchange="handleImg(this)"/>
+        <img id="f-img-preview" class="img-preview"/>
+      </div>
+      <div class="form-section-title">스킬</div>
+      <div id="skill-forms"></div>
+      <div class="form-actions">
+        <button class="btn-ghost" onclick="closeForm()">취소</button>
+        <button class="add-btn" onclick="saveChar()">저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'codex_chars_v2';
+const SKILL_TYPES = [
+  { key:'passive',label:'패시브',      badge:'badge-normal', hasLevels:false, hidden:false },
+  { key:'normal', label:'일반 공격',   badge:'badge-normal', hasLevels:false, hidden:false },
+  { key:'quick',  label:'퀵 스킬',     badge:'badge-quick',  hasLevels:true,  hidden:false },
+  { key:'quick2', label:'퀵 스킬 2',   badge:'badge-quick',  hasLevels:true,  hidden:true  },
+  { key:'active', label:'액티브 스킬', badge:'badge-active', hasLevels:true,  hidden:false },
+  { key:'ult',    label:'궁극기',      badge:'badge-ult',    hasLevels:true,  hidden:false },
+];
+// 화면에 표시되는 스킬만 (퀵스킬2 제외)
+const VISIBLE_SKILLS = SKILL_TYPES.filter(s=>!s.hidden);
+function emptySkill(key){ const lv=SKILL_TYPES.find(s=>s.key===key).hasLevels; return{name:'',icon:'',desc:lv?Array(10).fill(''):['']};  }
+function emptySkills(){ const o={}; SKILL_TYPES.forEach(s=>{o[s.key]=emptySkill(s.key);}); return o; }
+
+let chars=loadChars();
+let nextId=chars.length?Math.max(...chars.map(c=>c.id))+1:1;
+let activeFilter='all',activeId=null,editMode=false,pendingImg='';
+let pendingSkillIcons={},formDescCache={},formSkillLevels={};
+let detailSkillLevels={},skillOpenState={};
+
+/* ── STORAGE: IndexedDB for images, localStorage for text ── */
+const DB_NAME='codex_db', DB_VER=1, IMG_STORE='images';
+let db=null;
+
+function openDB(){
+  return new Promise((res,rej)=>{
+    if(db){res(db);return;}
+    const req=indexedDB.open(DB_NAME,DB_VER);
+    req.onupgradeneeded=e=>{e.target.result.createObjectStore(IMG_STORE);};
+    req.onsuccess=e=>{db=e.target.result;res(db);};
+    req.onerror=e=>rej(e);
+  });
+}
+function dbPut(key,val){
+  return openDB().then(db=>new Promise((res,rej)=>{
+    const tx=db.transaction(IMG_STORE,'readwrite');
+    tx.objectStore(IMG_STORE).put(val,key);
+    tx.oncomplete=()=>res();tx.onerror=e=>rej(e);
+  }));
+}
+function dbGet(key){
+  return openDB().then(db=>new Promise((res,rej)=>{
+    const tx=db.transaction(IMG_STORE,'readonly');
+    const req=tx.objectStore(IMG_STORE).get(key);
+    req.onsuccess=()=>res(req.result||null);req.onerror=e=>rej(e);
+  }));
+}
+function dbDel(key){
+  return openDB().then(db=>new Promise((res,rej)=>{
+    const tx=db.transaction(IMG_STORE,'readwrite');
+    tx.objectStore(IMG_STORE).delete(key);
+    tx.oncomplete=()=>res();tx.onerror=e=>rej(e);
+  }));
+}
+
+// img key helpers
+function charImgKey(id){return`char_img_${id}`;}
+function skillImgKey(id,sk){return`skill_img_${id}_${sk}`;}
+
+// save text data only (no images in localStorage)
+function saveChars(){
+  try{
+    const slim=chars.map(c=>{
+      const skills={};
+      SKILL_TYPES.forEach(st=>{
+        const s=c.skills?.[st.key]||emptySkill(st.key);
+        skills[st.key]={name:s.name,desc:s.desc};// no icon
+      });
+      return{...c,img:'__idb__',skills};
+    });
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(slim));
+  }catch(e){console.warn('saveChars:',e);}
+}
+
+// after loadChars, load images from IDB and attach
+async function hydrateImages(){
+  for(const c of chars){
+    const img=await dbGet(charImgKey(c.id)).catch(()=>null);
+    if(img) c.img=img;
+    for(const st of SKILL_TYPES){
+      const icon=await dbGet(skillImgKey(c.id,st.key)).catch(()=>null);
+      if(icon && c.skills?.[st.key]) c.skills[st.key].icon=icon;
+    }
+  }
+  renderFilters();renderGrid();
+}
+
+function loadChars(){
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const parsed=JSON.parse(raw);
+      return parsed.map(c=>{
+        const skills={};
+        SKILL_TYPES.forEach(st=>{
+          // 기존 저장 데이터에 해당 키가 없을 수도 있으므로 항상 emptySkill로 기본값 보장
+          const saved=c.skills?.[st.key];
+          const base=emptySkill(st.key);
+          skills[st.key]={
+            name: saved?.name ?? base.name,
+            icon: '',  // 이미지는 IDB에서 별도 로드
+            desc: saved?.desc ?? base.desc,
+          };
+        });
+        return{...c,img:'',skills};
+      });
+    }
+    const old=localStorage.getItem('codex_chars_v1');
+    if(old) return JSON.parse(old).map(c=>({...c,skills:c.skills||emptySkills()}));
+    return defaultChars();
+  }catch{return defaultChars();}
+}
+
+// save a character's images to IDB
+async function saveCharImages(c){
+  if(c.img && c.img.startsWith('data:')) await dbPut(charImgKey(c.id),c.img).catch(()=>{});
+  for(const st of SKILL_TYPES){
+    const icon=c.skills?.[st.key]?.icon;
+    if(icon && icon.startsWith('data:')) await dbPut(skillImgKey(c.id,st.key),icon).catch(()=>{});
+  }
+}
+async function deleteCharImages(id){
+  await dbDel(charImgKey(id)).catch(()=>{});
+  for(const st of SKILL_TYPES) await dbDel(skillImgKey(id,st.key)).catch(()=>{});
+}
+function defaultChars(){
+  return[
+    {id:1,name:'아리아',title:'빛의 성기사',rarity:'SSR',tags:['전사','인간','주인공'],img:'',atk:85,def:72,hp:1200,spd:60,mag:30,lck:55,skills:emptySkills()},
+    {id:2,name:'제이든',title:'그림자의 암살자',rarity:'SR',tags:['도적','엘프'],img:'',atk:95,def:40,hp:800,spd:98,mag:20,lck:80,skills:emptySkills()},
+    {id:3,name:'에리카',title:'대마법사',rarity:'SSR',tags:['마법사','인간'],img:'',atk:40,def:30,hp:600,spd:50,mag:99,lck:45,skills:emptySkills()},
+    {id:4,name:'브루탈',title:'철벽의 수호자',rarity:'R',tags:['전사','드워프'],img:'',atk:70,def:99,hp:2000,spd:30,mag:10,lck:40,skills:emptySkills()},
+  ];
+}
+
+function allTags(){const s=new Set();chars.forEach(c=>c.tags.forEach(t=>s.add(t)));return[...s];}
+function rarityClass(r){return r?'rarity-'+r:'';}
+
+function renderFilters(){
+  document.getElementById('filters').innerHTML=
+    `<button class="filter-btn ${activeFilter==='all'?'active':''}" onclick="setFilter('all',this)">전체</button>`+
+    allTags().map(t=>`<button class="filter-btn ${activeFilter===t?'active':''}" onclick="setFilter('${t}',this)">${t}</button>`).join('');
+}
+function setFilter(f,btn){
+  activeFilter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');renderGrid();
+}
+function getFiltered(){
+  const q=document.getElementById('search').value.toLowerCase().trim();
+  return chars.filter(c=>{
+    const mq=!q||c.name.toLowerCase().includes(q)||(c.title||'').toLowerCase().includes(q);
+    const mf=activeFilter==='all'||c.tags.includes(activeFilter);
+    return mq&&mf;
+  });
+}
+function renderGrid(){
+  const list=getFiltered();
+  document.getElementById('header-count').textContent=`${chars.length}명`;
+  document.getElementById('result-info').textContent=`${list.length}명 표시 중`;
+  const grid=document.getElementById('grid');
+  if(!list.length){grid.innerHTML='<div class="empty-state">해당하는 캐릭터가 없습니다</div>';return;}
+  grid.innerHTML=list.map(c=>`
+    <div class="card" data-id="${c.id}" draggable="true"
+      onclick="onCardClick(event,${c.id})"
+      ondragstart="onDragStart(event,${c.id})"
+      ondragover="onDragOver(event)"
+      ondragleave="onDragLeave(event)"
+      ondrop="onDrop(event,${c.id})"
+      ondragend="onDragEnd(event)">
+      <div class="card-img">
+        ${c.img?`<img src="${c.img}" alt="${c.name}" loading="lazy"/>`:`<div class="card-img-placeholder">⚔</div>`}
+        ${c.rarity?`<span class="card-rarity ${rarityClass(c.rarity)}">${c.rarity}</span>`:''}
+      </div>
+      <div class="card-body">
+        <div class="card-name">${c.name}</div>
+        <div class="card-title">${c.title||'&nbsp;'}</div>
+      </div>
+    </div>`).join('');
+}
+function maxStat(key){return Math.max(...chars.map(c=>c[key]||0),1);}
+
+/* ── DRAG TO REORDER ── */
+let dragSrcId = null;
+let dragMoved = false;
+
+function onCardClick(e, id){
+  if(dragMoved) return; // 드래그 후 클릭 무시
+  openDetail(id);
+}
+function onDragStart(e, id){
+  dragSrcId = id;
+  dragMoved = false;
+  e.dataTransfer.effectAllowed = 'move';
+  // 약간 딜레이 후 반투명 처리
+  setTimeout(()=>{ const el=e.currentTarget; if(el) el.classList.add('dragging'); }, 0);
+}
+function onDragOver(e){
+  e.preventDefault();
+  dragMoved = true;
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('drag-over');
+}
+function onDragLeave(e){
+  e.currentTarget.classList.remove('drag-over');
+}
+function onDrop(e, targetId){
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  if(dragSrcId === targetId || dragSrcId == null) return;
+
+  // chars 배열에서 실제 인덱스 찾기 (필터된 순서가 아닌 전체 배열 기준)
+  const srcIdx = chars.findIndex(c=>c.id===dragSrcId);
+  const tgtIdx = chars.findIndex(c=>c.id===targetId);
+  if(srcIdx<0 || tgtIdx<0) return;
+
+  const [moved] = chars.splice(srcIdx, 1);
+  chars.splice(tgtIdx, 0, moved);
+  saveChars();
+  renderGrid();
+}
+function onDragEnd(e){
+  dragSrcId = null;
+  document.querySelectorAll('.card').forEach(el=>{
+    el.classList.remove('dragging','drag-over');
+  });
+  setTimeout(()=>{ dragMoved = false; }, 100);
+}
+
+/* ── 캐릭터 ID 파싱 ── */
+// excelCharId(숫자)에서 표시용 캐릭터 ID 추출
+// 5자리 (ex: 11030) → 앞 1 제거 → 1030
+// 4자리 (ex: 1010)  → 수동 입력 (null)
+function deriveCharDisplayId(excelCharId){
+  if(!excelCharId) return null;
+  const s = String(excelCharId);
+  if(s.length === 5) return s.slice(1); // 1XXXX → XXXX
+  return null; // 4자리 이하 = 수동 입력
+}
+// 저장된 charDisplayId 반환 (수동 입력 우선, 없으면 자동 파싱)
+function getCharDisplayId(c){
+  if(c.charDisplayId != null && c.charDisplayId !== '') return c.charDisplayId;
+  return deriveCharDisplayId(c.excelCharId) || '';
+}
+
+/* ── DETAIL ── */
+function openDetail(id){
+  activeId=id;
+  const c=chars.find(x=>x.id===id);
+  document.getElementById('detail-title').textContent=c.name;
+
+  // LEFT — sticky image + meta info
+  document.getElementById('detail-left').innerHTML=`
+    <div class="detail-char-img">
+      ${c.img?`<img src="${c.img}" alt="${c.name}"/>`:`<div class="detail-img-placeholder">⚔</div>`}
+    </div>
+    ${c.rarity?`<span class="detail-rarity-badge ${rarityClass(c.rarity)}">${c.rarity}</span>`:''}
+    <div class="char-meta-panel">
+      <div class="char-meta-row">
+        <span class="char-meta-label">클래스</span>
+        <span class="char-meta-value ${!c.charClass?'char-meta-empty':''}">${c.charClass||'미지정'}</span>
+      </div>
+      <div class="char-meta-row">
+        <span class="char-meta-label">속성</span>
+        <span class="char-meta-value ${!c.attribute?'char-meta-empty':''}">${c.attribute||'미지정'}</span>
+      </div>
+      <div class="char-meta-row">
+        <span class="char-meta-label">소속</span>
+        <span class="char-meta-value ${!c.affiliation?'char-meta-empty':''}">${c.affiliation||'미지정'}</span>
+      </div>
+    </div>`;
+
+  // RIGHT — scrollable: name/tags → skills → stats
+  SKILL_TYPES.forEach(st=>{detailSkillLevels[st.key]=0;skillOpenState[st.key]=true;});
+  const skills=c.skills||emptySkills();
+
+  const skillsHtml=VISIBLE_SKILLS.map(st=>{
+    const sk=skills[st.key]||emptySkill(st.key);
+    const lv=0;
+    const desc=(sk.desc&&sk.desc[lv])||'';
+    const lvHtml=st.hasLevels?`<div class="lv-stepper" onclick="event.stopPropagation()"><button class="lv-btn" onclick="chDLv('${st.key}',-1,${c.id})">−</button><span class="lv-display" id="dlv-${st.key}">Lv.1</span><button class="lv-btn" onclick="chDLv('${st.key}',1,${c.id})">+</button></div>`:'<span style="font-size:11px;color:var(--text3);margin-right:4px">Lv.1</span>';
+    return`<div class="skill-card">
+      <div class="skill-header" onclick="toggleSkill('${st.key}',${c.id})">
+        <div class="skill-icon">${sk.icon?`<img src="${sk.icon}" alt=""/>`:`<div class="skill-icon-ph">✦</div>`}</div>
+        <div class="skill-info">
+          <span class="skill-type-badge ${st.badge}">${st.label}</span>
+          <div class="skill-name">${sk.name||'(스킬 이름 없음)'}</div>
+        </div>
+        <div class="skill-right">${lvHtml}<span class="skill-chevron open" id="chev-${st.key}">›</span></div>
+      </div>
+      <div class="skill-desc-wrap open" id="ddesc-${st.key}">
+        <div class="skill-desc ${!desc?'empty':''}">${desc||'설명 없음'}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const statDefs=[{label:'공격력',key:'atk'},{label:'방어력',key:'def'},{label:'HP',key:'hp'},{label:'속도',key:'spd'},{label:'마력',key:'mag'},{label:'행운',key:'lck'}];
+  const displayId = getCharDisplayId(c);
+
+  document.getElementById('detail-right').innerHTML=`
+    ${displayId ? `<div style="font-size:11px;color:var(--text3);margin-bottom:4px;letter-spacing:0.06em">ID&nbsp;${displayId}</div>` : ''}
+    <div class="detail-name">${c.name}</div>
+    <div class="detail-subtitle">${c.title||''}</div>
+    <div class="detail-tags">${c.tags.map(t=>`<span class="detail-tag">${t}</span>`).join('')}</div>
+    <div class="section-label">스킬</div>
+    <div class="skill-list">${skillsHtml}</div>
+    <div class="section-label">스탯</div>
+    <div class="stats-grid">${statDefs.map(s=>`<div class="stat-card"><div class="stat-card-label">${s.label}</div><div class="stat-card-val">${c[s.key]||0}</div></div>`).join('')}</div>`;
+
+  document.getElementById('del-btn').onclick=()=>deleteChar(id);
+  document.getElementById('edit-btn').onclick=()=>openEdit(id);
+  document.getElementById('detail-overlay').classList.add('open');
+}
+
+function toggleSkill(key,charId){
+  skillOpenState[key]=!skillOpenState[key];
+  const dw=document.getElementById('ddesc-'+key);
+  const ch=document.getElementById('chev-'+key);
+  if(dw) dw.classList.toggle('open',skillOpenState[key]);
+  if(ch) ch.classList.toggle('open',skillOpenState[key]);
+}
+function chDLv(key,delta,charId){
+  detailSkillLevels[key]=Math.max(0,Math.min(9,(detailSkillLevels[key]||0)+delta));
+  const c=chars.find(x=>x.id===charId);
+  const sk=(c.skills||emptySkills())[key];
+  const lv=detailSkillLevels[key];
+  const lvEl=document.getElementById('dlv-'+key);
+  if(lvEl) lvEl.textContent='Lv.'+(lv+1);
+  const dw=document.getElementById('ddesc-'+key);
+  if(dw){
+    const desc=(sk.desc&&sk.desc[lv])||'';
+    const d=dw.querySelector('.skill-desc');
+    d.textContent=desc||'설명 없음';
+    d.classList.toggle('empty',!desc);
+  }
+}
+
+function closeDetail(){document.getElementById('detail-overlay').classList.remove('open');}
+async function deleteChar(id){
+  if(!confirm('이 캐릭터를 삭제할까요?')) return;
+  chars=chars.filter(c=>c.id!==id);
+  await deleteCharImages(id);
+  saveChars();closeDetail();renderFilters();renderGrid();
+}
+
+/* ── FORM ── */
+function buildSkillForms(skills){
+  pendingSkillIcons={};
+  SKILL_TYPES.forEach(st=>{
+    formSkillLevels[st.key]=0;
+    formDescCache[st.key]=skills&&skills[st.key]?.desc?[...skills[st.key].desc]:Array(10).fill('');
+  });
+  document.getElementById('skill-forms').innerHTML=VISIBLE_SKILLS.map(st=>{
+    const sk=(skills&&skills[st.key])||emptySkill(st.key);
+    pendingSkillIcons[st.key]=sk.icon||'';
+    const lvHtml=st.hasLevels?`
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px">레벨별 설명</div>
+      <div class="lv-tabs" id="fltabs-${st.key}">${Array.from({length:10},(_,i)=>`<button class="lv-tab ${i===0?'active':''}" onclick="switchFLv('${st.key}',${i})">${i+1}</button>`).join('')}</div>
+      <textarea class="form-textarea" id="fldesc-${st.key}" placeholder="Lv.1 스킬 설명..." oninput="saveFDesc('${st.key}')">${formDescCache[st.key][0]||''}</textarea>`
+      :`<div style="font-size:11px;color:var(--text3);margin-bottom:6px">스킬 설명 <span style="color:var(--text3)">(Lv.1 고정)</span></div>
+        <textarea class="form-textarea" id="fldesc-${st.key}" placeholder="스킬 설명..." oninput="saveFDesc('${st.key}')">${formDescCache[st.key][0]||''}</textarea>`;
+    return`<div class="skill-form-card">
+      <div class="skill-form-header">
+        <div class="skill-icon-upload" onclick="document.getElementById('ficon-${st.key}').click()" title="아이콘 업로드">
+          ${sk.icon?`<img id="ficoni-${st.key}" src="${sk.icon}" alt=""/>`:`<span id="ficoni-${st.key}">✦</span>`}
+        </div>
+        <input type="file" id="ficon-${st.key}" accept="image/*" style="display:none" onchange="handleSkillIcon('${st.key}',this)"/>
+        <div class="skill-form-meta">
+          <span class="skill-type-badge ${st.badge}" style="margin-bottom:6px;display:inline-block">${st.label}</span>
+          <input class="form-input" id="fsname-${st.key}" placeholder="스킬 이름" value="${sk.name||''}"/>
+        </div>
+      </div>
+      ${lvHtml}
+    </div>`;
+  }).join('');
+}
+
+function saveFDesc(key){
+  const el=document.getElementById('fldesc-'+key);
+  if(!el)return;
+  const lv=formSkillLevels[key]||0;
+  if(!formDescCache[key]) formDescCache[key]=Array(10).fill('');
+  formDescCache[key][lv]=el.value;
+}
+function switchFLv(key,lv){
+  saveFDesc(key);
+  formSkillLevels[key]=lv;
+  document.getElementById('fldesc-'+key).value=formDescCache[key][lv]||'';
+  document.getElementById('fldesc-'+key).placeholder=`Lv.${lv+1} 스킬 설명...`;
+  document.querySelectorAll(`#fltabs-${key} .lv-tab`).forEach((b,i)=>b.classList.toggle('active',i===lv));
+}
+function handleSkillIcon(key,input){
+  const file=input.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    pendingSkillIcons[key]=e.target.result;
+    const el=document.getElementById('ficoni-'+key);
+    if(el.tagName==='IMG'){el.src=e.target.result;}
+    else{const img=document.createElement('img');img.id='ficoni-'+key;img.src=e.target.result;img.style.cssText='width:100%;height:100%;object-fit:cover';el.replaceWith(img);}
+  };
+  r.readAsDataURL(file);
+}
+
+function openAdd(){
+  editMode=false;pendingImg='';
+  document.getElementById('form-title').textContent='새 캐릭터';
+  ['f-name','f-title','f-tags','f-charid','f-affiliation'].forEach(id=>document.getElementById(id).value='');
+  ['f-atk','f-def','f-hp','f-spd','f-mag','f-lck'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-rarity').value='';
+  document.getElementById('f-class').value='';
+  document.getElementById('f-attribute').value='';
+  document.getElementById('f-img-preview').style.display='none';
+  buildSkillForms(null);
+  document.getElementById('form-overlay').classList.add('open');
+}
+function openEdit(id){
+  closeDetail();editMode=true;activeId=id;
+  const c=chars.find(x=>x.id===id);
+  pendingImg=c.img||'';
+  document.getElementById('form-title').textContent='캐릭터 수정';
+  document.getElementById('f-name').value=c.name;
+  document.getElementById('f-charid').value=getCharDisplayId(c);
+  document.getElementById('f-title').value=c.title||'';
+  document.getElementById('f-tags').value=c.tags.join(', ');
+  document.getElementById('f-rarity').value=c.rarity||'';
+  document.getElementById('f-class').value=c.charClass||'';
+  document.getElementById('f-attribute').value=c.attribute||'';
+  document.getElementById('f-affiliation').value=c.affiliation||'';
+  document.getElementById('f-atk').value=c.atk||0;
+  document.getElementById('f-def').value=c.def||0;
+  document.getElementById('f-hp').value=c.hp||0;
+  document.getElementById('f-spd').value=c.spd||0;
+  document.getElementById('f-mag').value=c.mag||0;
+  document.getElementById('f-lck').value=c.lck||0;
+  const prev=document.getElementById('f-img-preview');
+  if(c.img){prev.src=c.img;prev.style.display='block';}else{prev.style.display='none';}
+  buildSkillForms(c.skills||emptySkills());
+  document.getElementById('form-overlay').classList.add('open');
+}
+function closeForm(){document.getElementById('form-overlay').classList.remove('open');}
+
+function handleImg(input){
+  const file=input.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=e=>{pendingImg=e.target.result;const p=document.getElementById('f-img-preview');p.src=pendingImg;p.style.display='block';};
+  r.readAsDataURL(file);
+}
+
+function collectSkills(){
+  const res={};
+  // 보이는 스킬만 폼에서 수집
+  VISIBLE_SKILLS.forEach(st=>{
+    saveFDesc(st.key);
+    res[st.key]={
+      name:(document.getElementById('fsname-'+st.key)||{}).value?.trim()||'',
+      icon:pendingSkillIcons[st.key]||'',
+      desc:st.hasLevels?(formDescCache[st.key]||Array(10).fill('')):[formDescCache[st.key]?.[0]||''],
+    };
+  });
+  // 숨겨진 스킬(quick2)은 기존 데이터 그대로 유지
+  SKILL_TYPES.filter(s=>s.hidden).forEach(st=>{
+    if(editMode){
+      const existing=chars.find(c=>c.id===activeId);
+      res[st.key]=existing?.skills?.[st.key]||emptySkill(st.key);
+    } else {
+      res[st.key]=emptySkill(st.key);
+    }
+  });
+  return res;
+}
+
+async function saveChar(){
+  const name=document.getElementById('f-name').value.trim();
+  if(!name){alert('이름을 입력해주세요');return;}
+  const tags=document.getElementById('f-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  const data={
+    name,tags,
+    charDisplayId: document.getElementById('f-charid').value.trim(),
+    title:document.getElementById('f-title').value.trim(),
+    rarity:document.getElementById('f-rarity').value,
+    charClass:document.getElementById('f-class').value,
+    attribute:document.getElementById('f-attribute').value,
+    affiliation:document.getElementById('f-affiliation').value.trim(),
+    img:pendingImg,
+    atk:parseInt(document.getElementById('f-atk').value)||0,
+    def:parseInt(document.getElementById('f-def').value)||0,
+    hp:parseInt(document.getElementById('f-hp').value)||0,
+    spd:parseInt(document.getElementById('f-spd').value)||0,
+    mag:parseInt(document.getElementById('f-mag').value)||0,
+    lck:parseInt(document.getElementById('f-lck').value)||0,
+    skills:collectSkills(),
+  };
+  if(editMode){const idx=chars.findIndex(c=>c.id===activeId);chars[idx]={...chars[idx],...data};}
+  else{chars.push({id:nextId++,...data});}
+  const saved=editMode?chars.find(c=>c.id===activeId):chars[chars.length-1];
+  await saveCharImages(saved);
+  saveChars();closeForm();renderFilters();renderGrid();
+}
+
+function overlayClickClose(e,id){if(e.target===document.getElementById(id))document.getElementById(id).classList.remove('open');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDetail();closeForm();closeImport();}});
+
+/* ── EXCEL SKILL DATA (브라우저에서 xlsx 업로드로 갱신 가능) ── */
+let EXCEL_SKILL_DATA = {"11030":{"passiveName":"특이체질","normalName":"카르티엘라 기본공격","quickName":"흩날리는 본능","quick2Name":"흩날리는 본능","activeName":"좋은 거리감","ultName":"해방을 위해!","passiveDesc":"3회 스킬 사용 시, 2턴 동안 자신에게 공격력 증가 효과를 부여합니다.","normalDesc":"PC 1030 기본 공격 설명","quickDesc":"5M 내 지정한 위치로 돌진 후,1턴 동안 자신에게 공격속도 증가 효과를 부여합니다.","quick2Desc":"1턴 동안 자신에게 공격속도 증가 효과를 부여합니다.","activeDesc":"자신을 중심으로 전방(6MX1M)의 모든 적에게 피해를 주고, 가장 먼 스킬범위 까지 넉백 효과를 부여합니다.","ultDesc":"자신을 중심으로 전방(6M)의 모든 적군에게 공격력의 300%관통피해를 주고, 해당 위치에 창을 소환하여 공격력의 150%대미지를 5회 부여합니다.","charId":11030},"11040":{"passiveName":"베스타 패시브 스킬","normalName":"베스타 기본공격","quickName":"베스타 퀵 스킬","quick2Name":"베스타 퀵 스킬2","activeName":"베스타 액티브 스킬","ultName":"베스타 궁극기 스킬","passiveDesc":"자신에게공격력 증가 효과를 부여하고, 일반 공격에 피격 당한 적에게 1턴 동안 공격력 감소 효과를 부여합니다.","normalDesc":"PC 70번 기본 공격 설명","quickDesc":"2M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","quick2Desc":"자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (1X9M)에 관통형 투사체를 총 6발 발사하여투사체에 피격된 적에게 100% 피해를 줍","ultDesc":"자신을 중심으로 전방 직선 범위 (1X9M)내적에게 100% 피해를 주고, 1턴 동","charId":11040},"11050":{"passiveName":"기운 내!","normalName":"에스텔 기본 공격","quickName":"내가 도와줄게!","quick2Name":"내가 도와줄게!","activeName":"이제 괜찮을거야!","ultName":"다치면 안돼!","passiveDesc":"전투 시작 시 기준 자신을 제외한 아군 중 방어력이 가장 높은 대상 한 명에게 받는 피해 감소 효과를 부여합니다.","normalDesc":"PC 1050번 기본 공격 설명","quickDesc":"3M 내 지정한 위치로 돌진하며, 총돌한 적에게공격력 비례 피해 효과를 부여합니다.","quick2Desc":"자신을 중심으로 전방 직선 범위 (1X9M)에적에게 100% 피해를 줍니다.","activeDesc":"자신을 중심으로 원형 범위 (7M)내지정한 아군 한 명에게 3턴동안 방어력 증가 효과를 부여합니다.","ultDesc":"선택한 영역을 중심으로 원형 범위(3M)의 아군에게  2턴동안 보호막 효과를 부여합니다.","charId":11050},"11070":{"passiveName":"자~ 치즈","normalName":"마야 기본공격","quickName":"완벽한 각도","quick2Name":"완벽한 각도","activeName":"행복의 프레임","ultName":"풀샷","passiveDesc":"자신이 스킬로 동시에 2명 이상의 적에게 피해를 부여할 시 발동, 자신에게 1턴동안 속도 증가 효과를 부여합니다.","normalDesc":"PC 1070 기본 공격 설명","quickDesc":"3M 내 지정한 위치로 돌진하며, 총돌한 적에게공격력 비례 피해 효과를 부여합니다.","quick2Desc":"자신을 중심으로 전방 직선 범위 (1X6M)에적에게 100% 피해를 줍니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (2X9M)에적에게 100% 피해를 주고, 자신에게 해당 스킬로 피해를 입힌 적의 수에 비례한 만큼 유지되는 공격력 증가 증가 효과를 부여합니다.","ultDesc":"원형 범위 (3M)  내 적에 100% 피해를 주고, 2턴동안 받는 스킬 피해 증가 효과를 부여합니다.","charId":11070},"11080":{"passiveName":"희열","normalName":"리버 일반공격","quickName":"정면돌파!","quick2Name":"정면돌파!","activeName":"화끈하게 가보자고!","ultName":"콰앙~해버려!","passiveDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","normalDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","quickDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","quick2Desc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","activeDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","ultDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","charId":11080},"11090":{"passiveName":"라헬 패시브 스킬","normalName":"라헬 기본공격","quickName":"라헬 퀵 스킬","quick2Name":"라헬 퀵 스킬2","activeName":"라헬 액티브 스킬","ultName":"라헬 궁극기 스킬","passiveDesc":"자신에게공격력 증가 효과를 부여하고, 일반 공격에 피격 당한 적에게 1턴 동안 공격력 감소 효과를 부여합니다.","normalDesc":"PC 70번 기본 공격 설명","quickDesc":"2M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","quick2Desc":"자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (1X9M)에 관통형 투사체를 총 6발 발사하여투사체에 피격된 적에게 100% 피해를 줍","ultDesc":"자신을 중심으로 전방 직선 범위 (1X9M)내적에게 100% 피해를 주고, 1턴 동","charId":11090},"11100":{"passiveName":"수인의 재생력","normalName":"아스타로트 기본 공격","quickName":"막무가내 돌진","quick2Name":"막무가내 돌진","activeName":"겁쟁이의 수호","ultName":"쥐어짜낸 용기","passiveDesc":"전투 시작 시 기준 자신을 제외한 아군 중 방어력이 가장 높은 대상 한 명에게 받는 피해 감소 효과를 부여합니다.","normalDesc":"PC 1050번 기본 공격 설명","quickDesc":"3M 내 지정한 위치로 돌진하며, 총돌한 적에게공격력 비례 피해 효과를 부여합니다.","quick2Desc":"자신을 중심으로 전방 직선 범위 (1X9M)에적에게 100% 피해를 줍니다.","activeDesc":"자신을 중심으로 원형 범위 (7M)내지정한 아군 한 명에게 3턴동안 방어력 증가 효과를 부여합니다.","ultDesc":"선택한 영역을 중심으로 원형 범위(3M)의 아군에게  2턴동안 보호막 효과를 부여합니다.","charId":11100},"11140":{"passiveName":"권력행사","normalName":"밀리아 기본 공격","quickName":"검거시작","quick2Name":"검거시작","activeName":"선제타격","ultName":"강제집행","passiveDesc":"상태이상 중의 적 공격 시, 추가 대미지 효과를 부여합니다.","normalDesc":"PC 1140 기본 공격 설명","quickDesc":"4M 내 지정한 위치로 돌진하며, 총돌한 적에게공격력 비례 피해를 줍니다.","quick2Desc":"자신을 중심으로 전방 직선 범위 (1X3M)에적에게 공격력 비례 피해를 줍니다.","activeDesc":"자신을 중심으로 원형 범위 (2M)의적에게 공격력 비례 피해를 주고, 1턴 동안 공격속도 감소 효과를 부여합니다.","ultDesc":"스킬범위 내 모든 적에게공격력 비례 피해를 주고, 넉백 효과를 부여합니다. 넉백된 적이 충돌 시, 1턴동안 기절 효과를 부여합니다.","charId":11140},"11160":{"passiveName":"릴리에 패시브 스킬","normalName":"릴리에 기본공격","quickName":"릴리에 퀵 스킬","quick2Name":"릴리에 퀵 스킬2","activeName":"릴리에 액티브 스킬","ultName":"릴리에 궁극기 스킬","passiveDesc":"자신에게공격력 증가 효과를 부여하고, 일반 공격에 피격 당한 적에게 1턴 동안 공격력 감소 효과를 부여합니다.","normalDesc":"PC 70번 기본 공격 설명","quickDesc":"2M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","quick2Desc":"자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (1X9M)에 관통형 투사체를 총 6발 발사하여투사체에 피격된 적에게 100% 피해를 줍","ultDesc":"자신을 중심으로 전방 직선 범위 (1X9M)내적에게 100% 피해를 주고, 1턴 동","charId":11160}};
+
+/* ── xlsx 파싱 (SheetJS) - TextKey 파일 & Skill_CS 파일 모두 지원 ── */
+function parseXlsxFile(file){
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+
+      if(rows.length < 2){ alert('데이터가 없습니다.'); return; }
+
+      const SLOT = {'0':'passive','1':'normal','2':'quick','3':'quick2','4':'active','5':'ult'};
+      const parsed = {};
+
+      // 헤더 행 찾기
+      let headerRow = -1;
+      let uidCol = -1, nameCol = -1, fileType = '';
+
+      for(let r=0; r<Math.min(5,rows.length); r++){
+        const row = rows[r];
+        for(let c=0; c<row.length; c++){
+          const v = String(row[c]).trim();
+          if(v === 'UID') uidCol = c;
+          if(v === 'KO') { nameCol = c; fileType = 'textkey'; }
+          if(v === '#SkillNameText') { nameCol = c; fileType = 'skillcs'; }
+        }
+        if(uidCol >= 0 && nameCol >= 0){ headerRow = r; break; }
+      }
+
+      if(uidCol < 0 || nameCol < 0){
+        alert('지원하지 않는 파일 형식입니다.\nData_Skill_CS_PC.xlsx 파일을 사용해주세요.');
+        return;
+      }
+
+      // Data_TextKey_C_SkillPC 파일 차단
+      if(fileType === 'textkey'){
+        alert('Data_TextKey_C_SkillPC.xlsx는 지원하지 않습니다.\nData_Skill_CS_PC.xlsx 파일을 사용해주세요.');
+        return;
+      }
+
+      // #SkillDescriptionText 컬럼 위치 찾기
+      let descCol = -1;
+      const hrow = rows[headerRow];
+      for(let c=0; c<hrow.length; c++){
+        if(String(hrow[c]).trim() === '#SkillDescriptionText'){ descCol = c; break; }
+      }
+
+      // <TagName>텍스트</> 형태 태그 제거 함수
+      function stripTags(str){
+        if(!str || str === 'nan') return '';
+        return str.replace(/<[^>]*>/g, '').trim();
+      }
+
+      for(let r=headerRow+1; r<rows.length; r++){
+        const row = rows[r];
+        let raw = '', name = '', desc = '';
+
+        if(fileType === 'textkey'){
+          const uid = String(row[uidCol]||'').trim();
+          if(!uid.startsWith('Skill_PC_SkillName_')) continue;
+          raw = uid.replace('Skill_PC_SkillName_','');
+          if(!/^1\d{7,8}$/.test(raw)) continue;
+          name = String(row[nameCol]||'').trim();
+        } else {
+          const uid = String(row[uidCol]||'').trim();
+          if(!/^1\d{8}$/.test(uid)) continue;
+          raw = uid;
+          name = String(row[nameCol]||'').trim();
+          desc = descCol >= 0 ? stripTags(String(row[descCol]||'')) : '';
+        }
+
+        const nnn  = raw.slice(-3);
+        if(nnn !== '001') continue;
+        const rest  = raw.slice(0,-3);
+        const slot  = rest.slice(-1);
+        const cgrp  = rest.slice(0,-1);
+        const stype = SLOT[slot];
+        if(!stype || !name || name==='nan') continue;
+
+        if(!parsed[cgrp]) parsed[cgrp] = {charId:parseInt(cgrp),passiveName:'',normalName:'',quickName:'',quick2Name:'',activeName:'',ultName:'',
+          passiveDesc:'',normalDesc:'',quickDesc:'',quick2Desc:'',activeDesc:'',ultDesc:''};
+        if(!parsed[cgrp][stype+'Name']) parsed[cgrp][stype+'Name'] = name;
+        if(!parsed[cgrp][stype+'Desc'] && desc) parsed[cgrp][stype+'Desc'] = desc;
+      }
+
+      const count = Object.keys(parsed).length;
+      if(count === 0){ alert('파싱된 캐릭터가 없습니다. 파일을 확인해주세요.'); return; }
+
+      EXCEL_SKILL_DATA = {...EXCEL_SKILL_DATA};
+      for(const [, d] of Object.entries(parsed)){
+        EXCEL_SKILL_DATA[String(d.charId)] = d;
+      }
+
+      document.getElementById('xlsx-status').textContent = `✓ ${count}개 캐릭터 로드 완료`;
+      document.getElementById('xlsx-status').style.color = 'var(--teal)';
+      refreshImportList();
+    } catch(err){
+      alert('파일 파싱 오류: '+err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function refreshImportList(){
+  renderImportList(
+    document.getElementById('import-search').value,
+    document.getElementById('import-id-from').value,
+    document.getElementById('import-id-to').value
+  );
+}
+
+/* ── IMPORT UI ── */
+function openImport(){
+  document.getElementById('import-overlay').classList.add('open');
+  document.getElementById('xlsx-status').textContent='';
+  renderImportList('','','');
+}
+function closeImport(){
+  document.getElementById('import-overlay').classList.remove('open');
+}
+function renderImportList(filterName, idFrom, idTo){
+  const from = idFrom ? parseInt(idFrom) : -Infinity;
+  const to   = idTo   ? parseInt(idTo)   : Infinity;
+  const q    = filterName.toLowerCase().trim();
+
+  const entries = Object.values(EXCEL_SKILL_DATA).filter(d=>{
+    const inRange = d.charId >= from && d.charId <= to;
+    const matchName = !q ||
+      (d.normalName||'').toLowerCase().includes(q) ||
+      (d.quickName||'').toLowerCase().includes(q) ||
+      (d.activeName||'').toLowerCase().includes(q) ||
+      (d.passiveName||'').toLowerCase().includes(q);
+    return inRange && matchName;
+  }).sort((a,b)=>a.charId-b.charId);
+
+  const alreadyImported = new Set(
+    chars.filter(c=>c.excelCharId!=null).map(c=>c.excelCharId)
+  );
+
+  const list = document.getElementById('import-list');
+  if(!entries.length){
+    list.innerHTML='<div style="color:var(--text3);font-size:13px;padding:20px;text-align:center">해당하는 캐릭터가 없습니다</div>';
+    return;
+  }
+  list.innerHTML = entries.map(d=>{
+    const imported = alreadyImported.has(d.charId);
+    const displayId = String(d.charId).length===5 ? String(d.charId).slice(1) : String(d.charId);
+    return`<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--border)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:2px">ID ${displayId}</div>
+        <div style="font-size:14px;font-weight:500">${d.normalName||'(기본공격 없음)'}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:3px">
+          패시브: ${d.passiveName||'-'} &nbsp;·&nbsp; 퀵: ${d.quickName||'-'} &nbsp;·&nbsp; 액티브: ${d.activeName||'-'} &nbsp;·&nbsp; 궁극기: ${d.ultName||'-'}
+        </div>
+      </div>
+      ${imported
+        ? `<span style="font-size:11px;color:var(--teal);padding:3px 10px;border:0.5px solid rgba(93,214,181,0.35);border-radius:20px;flex-shrink:0">반영됨</span>`
+        : `<button onclick="importChar(${d.charId})" style="padding:5px 14px;font-size:12px;font-family:inherit;background:var(--accent2);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;flex-shrink:0">추가</button>`
+      }
+    </div>`;
+  }).join('');
+}
+
+function importChar(charId){
+  const d = EXCEL_SKILL_DATA[String(charId)];
+  if(!d) return;
+  const skills = emptySkills();
+
+  // 스킬 이름 + 설명 채우기
+  const MAP = [
+    {key:'passive', nameF:'passiveName', descF:'passiveDesc'},
+    {key:'normal',  nameF:'normalName',  descF:'normalDesc'},
+    {key:'quick',   nameF:'quickName',   descF:'quickDesc'},
+    {key:'quick2',  nameF:'quick2Name',  descF:'quick2Desc'},
+    {key:'active',  nameF:'activeName',  descF:'activeDesc'},
+    {key:'ult',     nameF:'ultName',     descF:'ultDesc'},
+  ];
+  MAP.forEach(({key, nameF, descF})=>{
+    skills[key].name = d[nameF] || '';
+    const desc = d[descF] || '';
+    if(desc){
+      // hasLevels인 스킬은 10레벨 배열, 아닌 것은 1레벨 배열
+      const st = SKILL_TYPES.find(s=>s.key===key);
+      if(st.hasLevels){
+        skills[key].desc = Array(10).fill(desc);
+      } else {
+        skills[key].desc = [desc];
+      }
+    }
+  });
+
+  const newChar = {
+    id: nextId++, name: d.normalName||`캐릭터 ${charId}`,
+    title:'', rarity:'', tags:[], img:'',
+    atk:0, def:0, hp:0, spd:0, mag:0, lck:0,
+    charDisplayId: deriveCharDisplayId(charId) || '',
+    skills, excelCharId: charId,
+  };
+  chars.push(newChar);
+  saveChars(); renderFilters(); renderGrid(); refreshImportList();
+}
+
+// init
+renderFilters();
+renderGrid();
+hydrateImages();
+</script>
+
+<!-- SheetJS CDN -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<!-- IMPORT OVERLAY -->
+<div class="overlay" id="import-overlay" onclick="overlayClickClose(event,'import-overlay')" style="z-index:200">
+  <div class="modal" style="max-width:580px">
+    <div class="modal-header">
+      <span class="modal-title">엑셀에서 캐릭터 가져오기</span>
+      <button class="close-btn" onclick="closeImport()">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- xlsx 업로드 -->
+      <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:500">엑셀 파일 업로드 (Data_Skill_CS_PC.xlsx)</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <label style="padding:7px 16px;font-size:13px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);cursor:pointer;color:var(--text2)">
+            파일 선택
+            <input type="file" accept=".xlsx,.xls" style="display:none" onchange="if(this.files[0])parseXlsxFile(this.files[0])"/>
+          </label>
+          <span id="xlsx-status" style="font-size:12px;color:var(--text3)">업로드하면 스킬 데이터가 최신으로 갱신됩니다</span>
+        </div>
+      </div>
+      <!-- 필터 -->
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+        <input class="form-input" id="import-id-from" type="number" placeholder="ID 시작" style="width:110px"
+          oninput="refreshImportList()"/>
+        <span style="line-height:38px;color:var(--text3)">~</span>
+        <input class="form-input" id="import-id-to" type="number" placeholder="ID 끝" style="width:110px"
+          oninput="refreshImportList()"/>
+        <input class="form-input" id="import-search" placeholder="스킬명 검색" style="flex:1;min-width:120px"
+          oninput="refreshImportList()"/>
+      </div>
+      <div id="import-list" style="max-height:380px;overflow-y:auto;scrollbar-width:thin"></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
