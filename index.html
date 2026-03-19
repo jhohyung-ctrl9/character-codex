@@ -114,7 +114,7 @@
   }
   .detail-char-img img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
   .detail-img-placeholder { font-size: 56px; opacity: 0.25; }
-  .detail-rarity-badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 700; }
+  .detail-rarity-badge { font-size: 16px; padding: 4px 14px; border-radius: 20px; font-weight: 700; }
   .char-meta-panel { width: 100%; display: flex; flex-direction: column; gap: 6px; }
   .char-meta-row { display: flex; flex-direction: column; gap: 2px; }
   .char-meta-label { font-size: 10px; color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; }
@@ -358,7 +358,7 @@ const SKILL_TYPES = [
 ];
 // 화면에 표시되는 스킬만 (퀵스킬2 제외)
 const VISIBLE_SKILLS = SKILL_TYPES.filter(s=>!s.hidden);
-function emptySkill(key){ const lv=SKILL_TYPES.find(s=>s.key===key).hasLevels; return{name:'',icon:'',desc:lv?Array(10).fill(''):['']};  }
+function emptySkill(key){ const lv=SKILL_TYPES.find(s=>s.key===key).hasLevels; return{name:'',icon:'',desc:lv?Array(10).fill(''):[''],cooltime:0}; }
 function emptySkills(){ const o={}; SKILL_TYPES.forEach(s=>{o[s.key]=emptySkill(s.key);}); return o; }
 
 let chars=loadChars();
@@ -627,6 +627,8 @@ function openDetail(id){
     const lv=0;
     const desc=(sk.desc&&sk.desc[lv])||'';
     const lvHtml=st.hasLevels?`<div class="lv-stepper" onclick="event.stopPropagation()"><button class="lv-btn" onclick="chDLv('${st.key}',-1,${c.id})">−</button><span class="lv-display" id="dlv-${st.key}">Lv.1</span><button class="lv-btn" onclick="chDLv('${st.key}',1,${c.id})">+</button></div>`:'<span style="font-size:11px;color:var(--text3);margin-right:4px">Lv.1</span>';
+    const cool = sk.cooltime || 0;
+    const coolHtml = cool > 0 ? `<span style="font-size:11px;color:var(--text3);margin-right:6px">쿨타임 ${cool}턴</span>` : '';
     return`<div class="skill-card">
       <div class="skill-header" onclick="toggleSkill('${st.key}',${c.id})">
         <div class="skill-icon">${sk.icon?`<img src="${sk.icon}" alt=""/>`:`<div class="skill-icon-ph">✦</div>`}</div>
@@ -634,7 +636,7 @@ function openDetail(id){
           <span class="skill-type-badge ${st.badge}">${st.label}</span>
           <div class="skill-name">${sk.name||'(스킬 이름 없음)'}</div>
         </div>
-        <div class="skill-right">${lvHtml}<span class="skill-chevron open" id="chev-${st.key}">›</span></div>
+        <div class="skill-right">${coolHtml}${lvHtml}<span class="skill-chevron open" id="chev-${st.key}">›</span></div>
       </div>
       <div class="skill-desc-wrap open" id="ddesc-${st.key}">
         <div class="skill-desc ${!desc?'empty':''}">${desc||'설명 없음'}</div>
@@ -849,7 +851,7 @@ function overlayClickClose(e,id){if(e.target===document.getElementById(id))docum
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDetail();closeForm();closeImport();}});
 
 /* ── EXCEL SKILL DATA (브라우저에서 xlsx 업로드로 갱신 가능) ── */
-let EXCEL_SKILL_DATA = {"11030":{"passiveName":"특이체질","normalName":"카르티엘라 기본공격","quickName":"흩날리는 본능","quick2Name":"흩날리는 본능","activeName":"좋은 거리감","ultName":"해방을 위해!","passiveDesc":"3회 스킬 사용 시, 2턴 동안 자신에게 공격력 증가 효과를 부여합니다.","normalDesc":"PC 1030 기본 공격 설명","quickDesc":"5M 내 지정한 위치로 돌진 후,1턴 동안 자신에게 공격속도 증가 효과를 부여합니다.","quick2Desc":"1턴 동안 자신에게 공격속도 증가 효과를 부여합니다.","activeDesc":"자신을 중심으로 전방(6MX1M)의 모든 적에게 피해를 주고, 가장 먼 스킬범위 까지 넉백 효과를 부여합니다.","ultDesc":"자신을 중심으로 전방(6M)의 모든 적군에게 공격력의 300%관통피해를 주고, 해당 위치에 창을 소환하여 공격력의 150%대미지를 5회 부여합니다.","charId":11030},"11040":{"passiveName":"베스타 패시브 스킬","normalName":"베스타 기본공격","quickName":"베스타 퀵 스킬","quick2Name":"베스타 퀵 스킬2","activeName":"베스타 액티브 스킬","ultName":"베스타 궁극기 스킬","passiveDesc":"자신에게공격력 증가 효과를 부여하고, 일반 공격에 피격 당한 적에게 1턴 동안 공격력 감소 효과를 부여합니다.","normalDesc":"PC 70번 기본 공격 설명","quickDesc":"2M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","quick2Desc":"자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (1X9M)에 관통형 투사체를 총 6발 발사하여투사체에 피격된 적에게 100% 피해를 줍","ultDesc":"자신을 중심으로 전방 직선 범위 (1X9M)내적에게 100% 피해를 주고, 1턴 동","charId":11040},"11050":{"passiveName":"기운 내!","normalName":"에스텔 기본 공격","quickName":"내가 도와줄게!","quick2Name":"내가 도와줄게!","activeName":"이제 괜찮을거야!","ultName":"다치면 안돼!","passiveDesc":"전투 시작 시 기준 자신을 제외한 아군 중 방어력이 가장 높은 대상 한 명에게 받는 피해 감소 효과를 부여합니다.","normalDesc":"PC 1050번 기본 공격 설명","quickDesc":"3M 내 지정한 위치로 돌진하며, 총돌한 적에게공격력 비례 피해 효과를 부여합니다.","quick2Desc":"자신을 중심으로 전방 직선 범위 (1X9M)에적에게 100% 피해를 줍니다.","activeDesc":"자신을 중심으로 원형 범위 (7M)내지정한 아군 한 명에게 3턴동안 방어력 증가 효과를 부여합니다.","ultDesc":"선택한 영역을 중심으로 원형 범위(3M)의 아군에게  2턴동안 보호막 효과를 부여합니다.","charId":11050},"11070":{"passiveName":"자~ 치즈","normalName":"마야 기본공격","quickName":"완벽한 각도","quick2Name":"완벽한 각도","activeName":"행복의 프레임","ultName":"풀샷","passiveDesc":"자신이 스킬로 동시에 2명 이상의 적에게 피해를 부여할 시 발동, 자신에게 1턴동안 속도 증가 효과를 부여합니다.","normalDesc":"PC 1070 기본 공격 설명","quickDesc":"3M 내 지정한 위치로 돌진하며, 총돌한 적에게공격력 비례 피해 효과를 부여합니다.","quick2Desc":"자신을 중심으로 전방 직선 범위 (1X6M)에적에게 100% 피해를 줍니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (2X9M)에적에게 100% 피해를 주고, 자신에게 해당 스킬로 피해를 입힌 적의 수에 비례한 만큼 유지되는 공격력 증가 증가 효과를 부여합니다.","ultDesc":"원형 범위 (3M)  내 적에 100% 피해를 주고, 2턴동안 받는 스킬 피해 증가 효과를 부여합니다.","charId":11070},"11080":{"passiveName":"희열","normalName":"리버 일반공격","quickName":"정면돌파!","quick2Name":"정면돌파!","activeName":"화끈하게 가보자고!","ultName":"콰앙~해버려!","passiveDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","normalDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","quickDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","quick2Desc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","activeDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","ultDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","charId":11080},"11090":{"passiveName":"라헬 패시브 스킬","normalName":"라헬 기본공격","quickName":"라헬 퀵 스킬","quick2Name":"라헬 퀵 스킬2","activeName":"라헬 액티브 스킬","ultName":"라헬 궁극기 스킬","passiveDesc":"자신에게공격력 증가 효과를 부여하고, 일반 공격에 피격 당한 적에게 1턴 동안 공격력 감소 효과를 부여합니다.","normalDesc":"PC 70번 기본 공격 설명","quickDesc":"2M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","quick2Desc":"자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (1X9M)에 관통형 투사체를 총 6발 발사하여투사체에 피격된 적에게 100% 피해를 줍","ultDesc":"자신을 중심으로 전방 직선 범위 (1X9M)내적에게 100% 피해를 주고, 1턴 동","charId":11090},"11100":{"passiveName":"수인의 재생력","normalName":"아스타로트 기본 공격","quickName":"막무가내 돌진","quick2Name":"막무가내 돌진","activeName":"겁쟁이의 수호","ultName":"쥐어짜낸 용기","passiveDesc":"전투 시작 시 기준 자신을 제외한 아군 중 방어력이 가장 높은 대상 한 명에게 받는 피해 감소 효과를 부여합니다.","normalDesc":"PC 1050번 기본 공격 설명","quickDesc":"3M 내 지정한 위치로 돌진하며, 총돌한 적에게공격력 비례 피해 효과를 부여합니다.","quick2Desc":"자신을 중심으로 전방 직선 범위 (1X9M)에적에게 100% 피해를 줍니다.","activeDesc":"자신을 중심으로 원형 범위 (7M)내지정한 아군 한 명에게 3턴동안 방어력 증가 효과를 부여합니다.","ultDesc":"선택한 영역을 중심으로 원형 범위(3M)의 아군에게  2턴동안 보호막 효과를 부여합니다.","charId":11100},"11140":{"passiveName":"권력행사","normalName":"밀리아 기본 공격","quickName":"검거시작","quick2Name":"검거시작","activeName":"선제타격","ultName":"강제집행","passiveDesc":"상태이상 중의 적 공격 시, 추가 대미지 효과를 부여합니다.","normalDesc":"PC 1140 기본 공격 설명","quickDesc":"4M 내 지정한 위치로 돌진하며, 총돌한 적에게공격력 비례 피해를 줍니다.","quick2Desc":"자신을 중심으로 전방 직선 범위 (1X3M)에적에게 공격력 비례 피해를 줍니다.","activeDesc":"자신을 중심으로 원형 범위 (2M)의적에게 공격력 비례 피해를 주고, 1턴 동안 공격속도 감소 효과를 부여합니다.","ultDesc":"스킬범위 내 모든 적에게공격력 비례 피해를 주고, 넉백 효과를 부여합니다. 넉백된 적이 충돌 시, 1턴동안 기절 효과를 부여합니다.","charId":11140},"11160":{"passiveName":"릴리에 패시브 스킬","normalName":"릴리에 기본공격","quickName":"릴리에 퀵 스킬","quick2Name":"릴리에 퀵 스킬2","activeName":"릴리에 액티브 스킬","ultName":"릴리에 궁극기 스킬","passiveDesc":"자신에게공격력 증가 효과를 부여하고, 일반 공격에 피격 당한 적에게 1턴 동안 공격력 감소 효과를 부여합니다.","normalDesc":"PC 70번 기본 공격 설명","quickDesc":"2M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","quick2Desc":"자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (1X9M)에 관통형 투사체를 총 6발 발사하여투사체에 피격된 적에게 100% 피해를 줍","ultDesc":"자신을 중심으로 전방 직선 범위 (1X9M)내적에게 100% 피해를 주고, 1턴 동","charId":11160}};
+let EXCEL_SKILL_DATA = {"11030":{"charId":11030,"passiveName":"특이체질","normalName":"카르티엘라 기본공격","quickName":"흩날리는 본능","quick2Name":"흩날리는 본능","activeName":"좋은 거리감","ultName":"해방을 위해!","passiveDesc":"3회 스킬 사용 시, 2턴 동안 자신에게 공격력 증가 효과를 부여합니다.","normalDesc":"PC 1030 기본 공격 설명","quickDesc":"5M 내 지정한 위치로 돌진 후,1턴 동안 자신에게 공격속도 증가 효과를 부여합니다.","quick2Desc":"1턴 동안 자신에게 공격속도 증가 효과를 부여합니다.","activeDesc":"자신을 중심으로 전방(6MX1M)의 모든 적에게 피해를 주고, 가장 먼 스킬범위 까지 넉백 효과를 부여합니다.","ultDesc":"자신을 중심으로 전방(6M)의 모든 적군에게 공격력의 300%관통피해를 주고, 해당 위치에 창을 소환하여 공격력의 150%대미지를 5회 부여합니다.","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"11040":{"charId":11040,"passiveName":"베스타 패시브 스킬","normalName":"베스타 기본공격","quickName":"베스타 퀵 스킬","quick2Name":"베스타 퀵 스킬2","activeName":"베스타 액티브 스킬","ultName":"베스타 궁극기 스킬","passiveDesc":"자신에게공격력 증가 효과를 부여하고, 일반 공격에 피격 당한 적에게 1턴 동안 공격력 감소 효과를 부여합니다.","normalDesc":"PC 70번 기본 공격 설명","quickDesc":"2M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","quick2Desc":"자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (1X9M)에 관통형 투사체를 총 6발 발사하여투사체에 피격된 적에게 100% 피해를 줍","ultDesc":"자신을 중심으로 전방 직선 범위 (1X9M)내적에게 100% 피해를 주고, 1턴 동","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":3},"11050":{"charId":11050,"passiveName":"기운 내!","normalName":"에스텔 기본 공격","quickName":"내가 도와줄게!","quick2Name":"내가 도와줄게!","activeName":"이제 괜찮을거야!","ultName":"다치면 안돼!","passiveDesc":"전투 시작 시 기준 자신을 제외한 아군 중 방어력이 가장 높은 대상 한 명에게 받는 피해 감소 효과를 부여합니다.","normalDesc":"PC 1050번 기본 공격 설명","quickDesc":"3M 내 지정한 위치로 돌진하며, 총돌한 적에게공격력 비례 피해 효과를 부여합니다.","quick2Desc":"자신을 중심으로 전방 직선 범위 (1X9M)에적에게 100% 피해를 줍니다.","activeDesc":"자신을 중심으로 원형 범위 (7M)내지정한 아군 한 명에게 3턴동안 방어력 증가 효과를 부여합니다.","ultDesc":"선택한 영역을 중심으로 원형 범위(3M)의 아군에게  2턴동안 보호막 효과를 부여합니다.","passiveCool":1,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"11070":{"charId":11070,"passiveName":"자~ 치즈","normalName":"마야 기본공격","quickName":"완벽한 각도","quick2Name":"완벽한 각도","activeName":"행복의 프레임","ultName":"풀샷","passiveDesc":"자신이 스킬로 동시에 2명 이상의 적에게 피해를 부여할 시 발동, 자신에게 1턴동안 속도 증가 효과를 부여합니다.","normalDesc":"PC 1070 기본 공격 설명","quickDesc":"3M 내 지정한 위치로 돌진하며, 총돌한 적에게공격력 비례 피해 효과를 부여합니다.","quick2Desc":"자신을 중심으로 전방 직선 범위 (1X6M)에적에게 100% 피해를 줍니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (2X9M)에적에게 100% 피해를 주고, 자신에게 해당 스킬로 피해를 입힌 적의 수에 비례한 만큼 유지되는 공격력 증가 증가 효과를 부여합니다.","ultDesc":"원형 범위 (3M)  내 적에 100% 피해를 주고, 2턴동안 받는 스킬 피해 증가 효과를 부여합니다.","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"11080":{"charId":11080,"passiveName":"희열","normalName":"리버 일반공격","quickName":"정면돌파!","quick2Name":"정면돌파!","activeName":"화끈하게 가보자고!","ultName":"콰앙~해버려!","passiveDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","normalDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","quickDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","quick2Desc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","activeDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","ultDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"11090":{"charId":11090,"passiveName":"라헬 패시브 스킬","normalName":"라헬 기본공격","quickName":"라헬 퀵 스킬","quick2Name":"라헬 퀵 스킬2","activeName":"라헬 액티브 스킬","ultName":"라헬 궁극기 스킬","passiveDesc":"자신에게공격력 증가 효과를 부여하고, 일반 공격에 피격 당한 적에게 1턴 동안 공격력 감소 효과를 부여합니다.","normalDesc":"PC 70번 기본 공격 설명","quickDesc":"2M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","quick2Desc":"자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (1X9M)에 관통형 투사체를 총 6발 발사하여투사체에 피격된 적에게 100% 피해를 줍","ultDesc":"자신을 중심으로 전방 직선 범위 (1X9M)내적에게 100% 피해를 주고, 1턴 동","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"11100":{"charId":11100,"passiveName":"수인의 재생력","normalName":"아스타로트 기본 공격","quickName":"막무가내 돌진","quick2Name":"막무가내 돌진","activeName":"겁쟁이의 수호","ultName":"쥐어짜낸 용기","passiveDesc":"전투 시작 시 기준 자신을 제외한 아군 중 방어력이 가장 높은 대상 한 명에게 받는 피해 감소 효과를 부여합니다.","normalDesc":"PC 1050번 기본 공격 설명","quickDesc":"3M 내 지정한 위치로 돌진하며, 총돌한 적에게공격력 비례 피해 효과를 부여합니다.","quick2Desc":"자신을 중심으로 전방 직선 범위 (1X9M)에적에게 100% 피해를 줍니다.","activeDesc":"자신을 중심으로 원형 범위 (7M)내지정한 아군 한 명에게 3턴동안 방어력 증가 효과를 부여합니다.","ultDesc":"선택한 영역을 중심으로 원형 범위(3M)의 아군에게  2턴동안 보호막 효과를 부여합니다.","passiveCool":3,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":3,"ultCool":4},"11140":{"charId":11140,"passiveName":"권력행사","normalName":"밀리아 기본 공격","quickName":"검거시작","quick2Name":"검거시작","activeName":"선제타격","ultName":"강제집행","passiveDesc":"상태이상 중의 적 공격 시, 추가 대미지 효과를 부여합니다.","normalDesc":"PC 1140 기본 공격 설명","quickDesc":"4M 내 지정한 위치로 돌진하며, 총돌한 적에게공격력 비례 피해를 줍니다.","quick2Desc":"자신을 중심으로 전방 직선 범위 (1X3M)에적에게 공격력 비례 피해를 줍니다.","activeDesc":"자신을 중심으로 원형 범위 (2M)의적에게 공격력 비례 피해를 주고, 1턴 동안 공격속도 감소 효과를 부여합니다.","ultDesc":"스킬범위 내 모든 적에게공격력 비례 피해를 주고, 넉백 효과를 부여합니다. 넉백된 적이 충돌 시, 1턴동안 기절 효과를 부여합니다.","passiveCool":3,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"11160":{"charId":11160,"passiveName":"릴리에 패시브 스킬","normalName":"릴리에 기본공격","quickName":"릴리에 퀵 스킬","quick2Name":"릴리에 퀵 스킬2","activeName":"릴리에 액티브 스킬","ultName":"릴리에 궁극기 스킬","passiveDesc":"자신에게공격력 증가 효과를 부여하고, 일반 공격에 피격 당한 적에게 1턴 동안 공격력 감소 효과를 부여합니다.","normalDesc":"PC 70번 기본 공격 설명","quickDesc":"2M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","quick2Desc":"자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (1X9M)에 관통형 투사체를 총 6발 발사하여투사체에 피격된 적에게 100% 피해를 줍","ultDesc":"자신을 중심으로 전방 직선 범위 (1X9M)내적에게 100% 피해를 주고, 1턴 동","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":3}};
 
 /* ── xlsx 파싱 (SheetJS) - TextKey 파일 & Skill_CS 파일 모두 지원 ── */
 function parseXlsxFile(file){
@@ -892,11 +894,13 @@ function parseXlsxFile(file){
         return;
       }
 
-      // #SkillDescriptionText 컬럼 위치 찾기
-      let descCol = -1;
+      // #SkillDescriptionText, CoolTimeValue 컬럼 위치 찾기
+      let descCol = -1, coolCol = -1;
       const hrow = rows[headerRow];
       for(let c=0; c<hrow.length; c++){
-        if(String(hrow[c]).trim() === '#SkillDescriptionText'){ descCol = c; break; }
+        const v = String(hrow[c]).trim();
+        if(v === '#SkillDescriptionText') descCol = c;
+        if(v === 'CoolTimeValue') coolCol = c;
       }
 
       // <TagName>텍스트</> 형태 태그 제거 함수
@@ -907,7 +911,7 @@ function parseXlsxFile(file){
 
       for(let r=headerRow+1; r<rows.length; r++){
         const row = rows[r];
-        let raw = '', name = '', desc = '';
+        let raw = '', name = '', desc = '', cool = 0;
 
         if(fileType === 'textkey'){
           const uid = String(row[uidCol]||'').trim();
@@ -921,6 +925,7 @@ function parseXlsxFile(file){
           raw = uid;
           name = String(row[nameCol]||'').trim();
           desc = descCol >= 0 ? stripTags(String(row[descCol]||'')) : '';
+          cool = coolCol >= 0 ? (parseInt(row[coolCol])||0) : 0;
         }
 
         const nnn  = raw.slice(-3);
@@ -932,9 +937,11 @@ function parseXlsxFile(file){
         if(!stype || !name || name==='nan') continue;
 
         if(!parsed[cgrp]) parsed[cgrp] = {charId:parseInt(cgrp),passiveName:'',normalName:'',quickName:'',quick2Name:'',activeName:'',ultName:'',
-          passiveDesc:'',normalDesc:'',quickDesc:'',quick2Desc:'',activeDesc:'',ultDesc:''};
+          passiveDesc:'',normalDesc:'',quickDesc:'',quick2Desc:'',activeDesc:'',ultDesc:'',
+          passiveCool:0,normalCool:0,quickCool:0,quick2Cool:0,activeCool:0,ultCool:0};
         if(!parsed[cgrp][stype+'Name']) parsed[cgrp][stype+'Name'] = name;
         if(!parsed[cgrp][stype+'Desc'] && desc) parsed[cgrp][stype+'Desc'] = desc;
+        if(!parsed[cgrp][stype+'Cool'] && cool) parsed[cgrp][stype+'Cool'] = cool;
       }
 
       const count = Object.keys(parsed).length;
@@ -1026,19 +1033,18 @@ function updateChar(charId){
   if(!existing) return;
 
   const MAP = [
-    {key:'passive', nameF:'passiveName', descF:'passiveDesc'},
-    {key:'normal',  nameF:'normalName',  descF:'normalDesc'},
-    {key:'quick',   nameF:'quickName',   descF:'quickDesc'},
-    {key:'quick2',  nameF:'quick2Name',  descF:'quick2Desc'},
-    {key:'active',  nameF:'activeName',  descF:'activeDesc'},
-    {key:'ult',     nameF:'ultName',     descF:'ultDesc'},
+    {key:'passive', nameF:'passiveName', descF:'passiveDesc', coolF:'passiveCool'},
+    {key:'normal',  nameF:'normalName',  descF:'normalDesc',  coolF:'normalCool'},
+    {key:'quick',   nameF:'quickName',   descF:'quickDesc',   coolF:'quickCool'},
+    {key:'quick2',  nameF:'quick2Name',  descF:'quick2Desc',  coolF:'quick2Cool'},
+    {key:'active',  nameF:'activeName',  descF:'activeDesc',  coolF:'activeCool'},
+    {key:'ult',     nameF:'ultName',     descF:'ultDesc',     coolF:'ultCool'},
   ];
 
   const skills = existing.skills || emptySkills();
-  MAP.forEach(({key, nameF, descF})=>{
-    // 스킬 이름 갱신
+  MAP.forEach(({key, nameF, descF, coolF})=>{
     skills[key].name = d[nameF] || '';
-    // 설명은 비어있을 때만 채우고, 이미 직접 입력한 내용이 있으면 유지
+    skills[key].cooltime = d[coolF] || 0;
     const existingDesc = skills[key].desc;
     const hasCustomDesc = existingDesc && existingDesc.some(v=>v && v.trim());
     if(!hasCustomDesc){
@@ -1072,18 +1078,18 @@ function importChar(charId){
 
   // 스킬 이름 + 설명 채우기
   const MAP = [
-    {key:'passive', nameF:'passiveName', descF:'passiveDesc'},
-    {key:'normal',  nameF:'normalName',  descF:'normalDesc'},
-    {key:'quick',   nameF:'quickName',   descF:'quickDesc'},
-    {key:'quick2',  nameF:'quick2Name',  descF:'quick2Desc'},
-    {key:'active',  nameF:'activeName',  descF:'activeDesc'},
-    {key:'ult',     nameF:'ultName',     descF:'ultDesc'},
+    {key:'passive', nameF:'passiveName', descF:'passiveDesc', coolF:'passiveCool'},
+    {key:'normal',  nameF:'normalName',  descF:'normalDesc',  coolF:'normalCool'},
+    {key:'quick',   nameF:'quickName',   descF:'quickDesc',   coolF:'quickCool'},
+    {key:'quick2',  nameF:'quick2Name',  descF:'quick2Desc',  coolF:'quick2Cool'},
+    {key:'active',  nameF:'activeName',  descF:'activeDesc',  coolF:'activeCool'},
+    {key:'ult',     nameF:'ultName',     descF:'ultDesc',     coolF:'ultCool'},
   ];
-  MAP.forEach(({key, nameF, descF})=>{
+  MAP.forEach(({key, nameF, descF, coolF})=>{
     skills[key].name = d[nameF] || '';
+    skills[key].cooltime = d[coolF] || 0;
     const desc = d[descF] || '';
     if(desc){
-      // hasLevels인 스킬은 10레벨 배열, 아닌 것은 1레벨 배열
       const st = SKILL_TYPES.find(s=>s.key===key);
       if(st.hasLevels){
         skills[key].desc = Array(10).fill(desc);
