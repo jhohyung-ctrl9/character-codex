@@ -1007,12 +1007,62 @@ function renderImportList(filterName, idFrom, idTo){
           패시브: ${d.passiveName||'-'} &nbsp;·&nbsp; 퀵: ${d.quickName||'-'} &nbsp;·&nbsp; 액티브: ${d.activeName||'-'} &nbsp;·&nbsp; 궁극기: ${d.ultName||'-'}
         </div>
       </div>
-      ${imported
-        ? `<span style="font-size:11px;color:var(--teal);padding:3px 10px;border:0.5px solid rgba(93,214,181,0.35);border-radius:20px;flex-shrink:0">반영됨</span>`
-        : `<button onclick="importChar(${d.charId})" style="padding:5px 14px;font-size:12px;font-family:inherit;background:var(--accent2);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;flex-shrink:0">추가</button>`
-      }
+      <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0;align-items:flex-end">
+        ${imported
+          ? `<span style="font-size:11px;color:var(--teal);padding:3px 10px;border:0.5px solid rgba(93,214,181,0.35);border-radius:20px">반영됨</span>
+             <button onclick="updateChar(${d.charId})" style="padding:4px 10px;font-size:11px;font-family:inherit;background:transparent;color:var(--text2);border:0.5px solid var(--border2);border-radius:var(--radius);cursor:pointer;white-space:nowrap" title="이미지·클래스·속성 유지, 나머지 갱신">↻ 데이터 갱신</button>`
+          : `<button onclick="importChar(${d.charId})" style="padding:5px 14px;font-size:12px;font-family:inherit;background:var(--accent2);color:#fff;border:none;border-radius:var(--radius);cursor:pointer">추가</button>`
+        }
+      </div>
     </div>`;
   }).join('');
+}
+
+// 이미지·클래스·속성 유지하고 스킬명/설명/이름 등 갱신
+function updateChar(charId){
+  const d = EXCEL_SKILL_DATA[String(charId)];
+  if(!d) return;
+  const existing = chars.find(c=>c.excelCharId===charId);
+  if(!existing) return;
+
+  const MAP = [
+    {key:'passive', nameF:'passiveName', descF:'passiveDesc'},
+    {key:'normal',  nameF:'normalName',  descF:'normalDesc'},
+    {key:'quick',   nameF:'quickName',   descF:'quickDesc'},
+    {key:'quick2',  nameF:'quick2Name',  descF:'quick2Desc'},
+    {key:'active',  nameF:'activeName',  descF:'activeDesc'},
+    {key:'ult',     nameF:'ultName',     descF:'ultDesc'},
+  ];
+
+  const skills = existing.skills || emptySkills();
+  MAP.forEach(({key, nameF, descF})=>{
+    // 스킬 이름 갱신
+    skills[key].name = d[nameF] || '';
+    // 설명은 비어있을 때만 채우고, 이미 직접 입력한 내용이 있으면 유지
+    const existingDesc = skills[key].desc;
+    const hasCustomDesc = existingDesc && existingDesc.some(v=>v && v.trim());
+    if(!hasCustomDesc){
+      const desc = d[descF] || '';
+      const st = SKILL_TYPES.find(s=>s.key===key);
+      skills[key].desc = desc
+        ? (st.hasLevels ? Array(10).fill(desc) : [desc])
+        : (st.hasLevels ? Array(10).fill('') : ['']);
+    }
+  });
+
+  const idx = chars.findIndex(c=>c.id===existing.id);
+  chars[idx] = {
+    ...existing,
+    // 갱신할 항목
+    name:    d.normalName || existing.name,
+    skills,
+    // 유지할 항목: img, charClass, attribute, affiliation, rarity, title, tags, stats
+  };
+
+  saveChars();
+  renderFilters();
+  renderGrid();
+  refreshImportList();
 }
 
 function importChar(charId){
