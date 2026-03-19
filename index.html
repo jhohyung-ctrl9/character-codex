@@ -228,6 +228,8 @@
 
   /* KEYWORD HIGHLIGHT */
   .kw-highlight { background: rgba(240,192,96,0.35); color: var(--gold); border-radius: 3px; padding: 0 2px; font-weight: 700; }
+  .skill-tag-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 4px; background: var(--accent-glow); color: var(--accent); border: 0.5px solid var(--accent2); cursor: pointer; margin: 0 1px; transition: background 0.15s; vertical-align: baseline; }
+  .skill-tag-badge:hover { background: rgba(180,142,255,0.3); }
   .keyword-wrap { position: relative; flex: 1; min-width: 160px; }
   .keyword-box { width: 100%; padding: 9px 12px; background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.2s; }
   .keyword-box:focus { border-color: rgba(240,192,96,0.6); }
@@ -687,7 +689,7 @@ function openDetail(id){
         <div class="skill-right">${coolHtml}${lvHtml}<span class="skill-chevron open" id="chev-${st.key}">›</span></div>
       </div>
       <div class="skill-desc-wrap open" id="ddesc-${st.key}">
-        <div class="skill-desc ${!desc?'empty':''}" data-raw="${desc.replace(/"/g,'&quot;')}">${desc ? highlightText(desc, currentKeyword) : '설명 없음'}</div>
+        <div class="skill-desc ${!desc?'empty':''}" data-raw="${desc.replace(/"/g,'&quot;')}">${desc ? renderSkillDesc(desc) : '설명 없음'}</div>
       </div>
     </div>`;
   }).join('');
@@ -729,7 +731,7 @@ function chDLv(key,delta,charId){
     const desc=(sk.desc&&sk.desc[lv])||'';
     const d=dw.querySelector('.skill-desc');
     d.dataset.raw = desc;
-    d.innerHTML = desc ? highlightText(desc, currentKeyword) : '설명 없음';
+    d.innerHTML = desc ? renderSkillDesc(desc) : '설명 없음';
     d.classList.toggle('empty',!desc);
   }
 }
@@ -905,15 +907,64 @@ async function saveChar(){
 /* ── 키워드 하이라이트 & 자동 태그 ── */
 let currentKeyword = '';
 
+// 스킬 설명 렌더링: 태그 배지 + 키워드 하이라이트 동시 적용
+function renderSkillDesc(text){
+  if(!text) return '';
+  const tags = allTags();
+  if(!tags.length && !currentKeyword) return text;
+
+  // 태그와 키워드를 합쳐서 처리 (긴 것 우선 매칭)
+  const tagSet = new Set(tags);
+
+  // 텍스트를 문자 단위로 순회하며 태그/키워드 매칭
+  let result = '';
+  let i = 0;
+  while(i < text.length){
+    // 태그 매칭 시도 (정확한 단어 일치)
+    let matched = false;
+    // 긴 태그부터 시도
+    const sortedTags = [...tagSet].sort((a,b)=>b.length-a.length);
+    for(const tag of sortedTags){
+      if(text.slice(i, i+tag.length) === tag){
+        const safeTag = tag.replace(/'/g,"\\'");
+        result += `<span class="skill-tag-badge" onclick="event.stopPropagation();setFilterAndClose('${safeTag}')" title="'${tag}' 태그 필터">${tag}</span>`;
+        i += tag.length;
+        matched = true;
+        break;
+      }
+    }
+    if(matched) continue;
+
+    // 키워드 하이라이트 시도
+    if(currentKeyword && text.slice(i, i+currentKeyword.length) === currentKeyword){
+      result += `<span class="kw-highlight">${currentKeyword}</span>`;
+      i += currentKeyword.length;
+      continue;
+    }
+
+    // 일반 문자
+    const ch = text[i];
+    result += ch === '<' ? '&lt;' : ch === '>' ? '&gt;' : ch === '&' ? '&amp;' : ch;
+    i++;
+  }
+  return result;
+}
+
+function setFilterAndClose(tag){
+  activeFilter = tag;
+  renderFilters();
+  renderGrid();
+  // 팝업 닫기
+  closeDetail();
+}
+
 function highlightText(text, keyword){
-  if(!keyword || !text) return text;
-  const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return text.replace(new RegExp(`(${escaped})`, 'gi'), '<span class="kw-highlight">$1</span>');
+  if(!keyword || !text) return renderSkillDesc(text);
+  return renderSkillDesc(text);
 }
 
 function onKeywordInput(){
   currentKeyword = document.getElementById('keyword-input').value.trim();
-  // 키워드가 있는 캐릭터에 자동 태그 추가
   if(currentKeyword){
     let changed = false;
     chars.forEach(c=>{
@@ -931,11 +982,10 @@ function onKeywordInput(){
     });
     if(changed){ saveChars(); renderFilters(); renderGrid(); }
   }
-  // 현재 열린 팝업 스킬 설명 하이라이트 갱신
   document.querySelectorAll('.skill-desc').forEach(el=>{
     const raw = el.dataset.raw;
     if(raw !== undefined){
-      el.innerHTML = currentKeyword ? highlightText(raw, currentKeyword) : (raw || '<span class="empty">설명 없음</span>');
+      el.innerHTML = raw ? renderSkillDesc(raw) : '<span class="empty">설명 없음</span>';
     }
   });
 }
