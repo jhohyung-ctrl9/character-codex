@@ -225,6 +225,25 @@
     .detail-char-img { width: 116px; height: 218px; }
     .detail-right { padding: 14px; }
   }
+
+  /* KEYWORD HIGHLIGHT */
+  .kw-highlight { background: rgba(240,192,96,0.35); color: var(--gold); border-radius: 3px; padding: 0 2px; font-weight: 700; }
+  .keyword-wrap { position: relative; flex: 1; min-width: 160px; }
+  .keyword-box { width: 100%; padding: 9px 12px; background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.2s; }
+  .keyword-box:focus { border-color: rgba(240,192,96,0.6); }
+  .keyword-box::placeholder { color: var(--text3); }
+
+  /* TAG POPUP */
+  .tag-popup-btn { padding: 8px 14px; font-size: 13px; font-family: inherit; border: 0.5px solid var(--border); border-radius: var(--radius); background: transparent; color: var(--text2); cursor: pointer; white-space: nowrap; transition: all 0.15s; }
+  .tag-popup-btn:hover { border-color: var(--border2); color: var(--text); }
+  .tag-popup { display: none; position: fixed; z-index: 300; background: var(--bg2); border: 0.5px solid var(--border2); border-radius: var(--radius-lg); padding: 14px; min-width: 260px; max-height: 400px; overflow-y: auto; scrollbar-width: thin; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+  .tag-popup.open { display: block; }
+  .tag-popup-title { font-size: 11px; color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 10px; font-weight: 700; }
+  .tag-popup-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag-popup-item { font-size: 12px; padding: 4px 12px; border-radius: 20px; background: rgba(255,255,255,0.05); color: var(--text2); border: 0.5px solid var(--border); cursor: pointer; transition: all 0.15s; }
+  .tag-popup-item:hover { border-color: var(--accent2); color: var(--accent); background: var(--accent-glow); }
+  .tag-popup-item.active { border-color: var(--accent2); color: var(--accent); background: var(--accent-glow); }
+  .tag-popup-empty { font-size: 13px; color: var(--text3); }
 </style>
 </head>
 <body>
@@ -242,9 +261,19 @@
     </svg>
     <input class="search-box" id="search" placeholder="이름 또는 칭호 검색..." oninput="renderGrid()" />
   </div>
+  <div class="keyword-wrap">
+    <input class="keyword-box" id="keyword-input" placeholder="🔍 스킬 설명 키워드 하이라이트..." oninput="onKeywordInput()" />
+  </div>
+  <button class="tag-popup-btn" id="tag-popup-trigger" onclick="toggleTagPopup(event)">태그 목록 ▾</button>
   <div class="filters" id="filters"></div>
   <button class="btn-ghost" onclick="openImport()" style="white-space:nowrap">엑셀 가져오기</button>
   <button class="add-btn" onclick="openAdd()">+ 추가</button>
+</div>
+
+<!-- TAG POPUP -->
+<div class="tag-popup" id="tag-popup">
+  <div class="tag-popup-title">태그 목록 (가나다순)</div>
+  <div class="tag-popup-list" id="tag-popup-list"></div>
 </div>
 
 <div class="grid-wrap">
@@ -639,7 +668,7 @@ function openDetail(id){
         <div class="skill-right">${coolHtml}${lvHtml}<span class="skill-chevron open" id="chev-${st.key}">›</span></div>
       </div>
       <div class="skill-desc-wrap open" id="ddesc-${st.key}">
-        <div class="skill-desc ${!desc?'empty':''}">${desc||'설명 없음'}</div>
+        <div class="skill-desc ${!desc?'empty':''}" data-raw="${desc.replace(/"/g,'&quot;')}">${desc ? highlightText(desc, currentKeyword) : '설명 없음'}</div>
       </div>
     </div>`;
   }).join('');
@@ -680,7 +709,8 @@ function chDLv(key,delta,charId){
   if(dw){
     const desc=(sk.desc&&sk.desc[lv])||'';
     const d=dw.querySelector('.skill-desc');
-    d.textContent=desc||'설명 없음';
+    d.dataset.raw = desc;
+    d.innerHTML = desc ? highlightText(desc, currentKeyword) : '설명 없음';
     d.classList.toggle('empty',!desc);
   }
 }
@@ -717,7 +747,14 @@ function buildSkillForms(skills){
         <input type="file" id="ficon-${st.key}" accept="image/*" style="display:none" onchange="handleSkillIcon('${st.key}',this)"/>
         <div class="skill-form-meta">
           <span class="skill-type-badge ${st.badge}" style="margin-bottom:6px;display:inline-block">${st.label}</span>
-          <input class="form-input" id="fsname-${st.key}" placeholder="스킬 이름" value="${sk.name||''}"/>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input class="form-input" id="fsname-${st.key}" placeholder="스킬 이름" value="${sk.name||''}" style="flex:1"/>
+            <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
+              <label style="font-size:11px;color:var(--text3);white-space:nowrap">쿨타임</label>
+              <input class="form-input" id="fscool-${st.key}" type="number" min="0" max="99" placeholder="0" value="${sk.cooltime||0}" style="width:56px;padding:9px 8px;text-align:center"/>
+              <span style="font-size:11px;color:var(--text3)">턴</span>
+            </div>
+          </div>
         </div>
       </div>
       ${lvHtml}
@@ -798,16 +835,15 @@ function handleImg(input){
 
 function collectSkills(){
   const res={};
-  // 보이는 스킬만 폼에서 수집
   VISIBLE_SKILLS.forEach(st=>{
     saveFDesc(st.key);
     res[st.key]={
       name:(document.getElementById('fsname-'+st.key)||{}).value?.trim()||'',
       icon:pendingSkillIcons[st.key]||'',
       desc:st.hasLevels?(formDescCache[st.key]||Array(10).fill('')):[formDescCache[st.key]?.[0]||''],
+      cooltime:parseInt(document.getElementById('fscool-'+st.key)?.value)||0,
     };
   });
-  // 숨겨진 스킬(quick2)은 기존 데이터 그대로 유지
   SKILL_TYPES.filter(s=>s.hidden).forEach(st=>{
     if(editMode){
       const existing=chars.find(c=>c.id===activeId);
@@ -846,6 +882,85 @@ async function saveChar(){
   await saveCharImages(saved);
   saveChars();closeForm();renderFilters();renderGrid();
 }
+
+/* ── 키워드 하이라이트 & 자동 태그 ── */
+let currentKeyword = '';
+
+function highlightText(text, keyword){
+  if(!keyword || !text) return text;
+  const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return text.replace(new RegExp(`(${escaped})`, 'gi'), '<span class="kw-highlight">$1</span>');
+}
+
+function onKeywordInput(){
+  currentKeyword = document.getElementById('keyword-input').value.trim();
+  // 키워드가 있는 캐릭터에 자동 태그 추가
+  if(currentKeyword){
+    let changed = false;
+    chars.forEach(c=>{
+      const skills = c.skills || {};
+      const hasKw = SKILL_TYPES.some(st=>{
+        const sk = skills[st.key];
+        if(!sk) return false;
+        const descs = Array.isArray(sk.desc) ? sk.desc : [sk.desc||''];
+        return descs.some(d=>d && d.toLowerCase().includes(currentKeyword.toLowerCase()));
+      });
+      if(hasKw && !c.tags.includes(currentKeyword)){
+        c.tags = [...c.tags, currentKeyword];
+        changed = true;
+      }
+    });
+    if(changed){ saveChars(); renderFilters(); renderGrid(); }
+  }
+  // 현재 열린 팝업 스킬 설명 하이라이트 갱신
+  document.querySelectorAll('.skill-desc').forEach(el=>{
+    const raw = el.dataset.raw;
+    if(raw !== undefined){
+      el.innerHTML = currentKeyword ? highlightText(raw, currentKeyword) : (raw || '<span class="empty">설명 없음</span>');
+    }
+  });
+}
+
+/* ── 태그 팝업 ── */
+let tagPopupOpen = false;
+
+function toggleTagPopup(e){
+  e.stopPropagation();
+  tagPopupOpen = !tagPopupOpen;
+  const pop = document.getElementById('tag-popup');
+  pop.classList.toggle('open', tagPopupOpen);
+  if(tagPopupOpen){
+    // 버튼 위치 기준으로 팝업 위치 설정
+    const btn = document.getElementById('tag-popup-trigger');
+    const rect = btn.getBoundingClientRect();
+    pop.style.top = (rect.bottom + 6) + 'px';
+    pop.style.left = rect.left + 'px';
+    renderTagPopup();
+  }
+}
+function renderTagPopup(){
+  const tags = [...allTags()].sort((a,b)=>a.localeCompare(b,'ko'));
+  const list = document.getElementById('tag-popup-list');
+  if(!tags.length){
+    list.innerHTML='<span class="tag-popup-empty">태그 없음</span>'; return;
+  }
+  list.innerHTML = tags.map(t=>`
+    <span class="tag-popup-item ${activeFilter===t?'active':''}" onclick="setFilterFromPopup('${t}')">${t}</span>
+  `).join('');
+}
+function setFilterFromPopup(t){
+  activeFilter = activeFilter===t ? 'all' : t;
+  renderFilters();
+  renderGrid();
+  renderTagPopup();
+}
+document.addEventListener('click', e=>{
+  if(tagPopupOpen && !document.getElementById('tag-popup').contains(e.target)
+     && e.target.id !== 'tag-popup-trigger'){
+    tagPopupOpen = false;
+    document.getElementById('tag-popup').classList.remove('open');
+  }
+});
 
 function overlayClickClose(e,id){if(e.target===document.getElementById(id))document.getElementById(id).classList.remove('open');}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDetail();closeForm();closeImport();}});
