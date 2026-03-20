@@ -277,7 +277,7 @@
     <button class="btn-ghost" onclick="openImport()" style="white-space:nowrap">엑셀 가져오기</button>
     <button class="add-btn" onclick="openAdd()">+ 추가</button>
   </div>
-  <!-- 2행: 드롭다운 필터 + 키워드 + 태그 -->
+  <!-- 2행: 드롭다운 필터 + 태그 필터 버튼 -->
   <div class="toolbar-row">
     <select class="filter-select" id="filter-class" onchange="renderGrid()">
       <option value="">클래스 전체</option>
@@ -297,22 +297,15 @@
       <option value="시초">시초</option>
       <option value="종언">종언</option>
     </select>
-    <div class="keyword-wrap">
-      <input class="keyword-box" id="keyword-input" placeholder="🔍 스킬 설명 키워드 하이라이트..."
-        oninput="onKeywordHighlight()"
-        oncompositionstart="isComposing=true"
-        oncompositionend="isComposing=false;onKeywordHighlight()" />
-    </div>
     <div class="filters" id="filters"></div>
-  <!-- 3행: 태그 직접 추가 + 추가된 태그 나열 -->
+  </div>
+  <!-- 3행: 태그 풀 추가 입력 + 태그 칩 나열 -->
   <div class="toolbar-row" id="tag-input-row">
-    <div style="position:relative;flex-shrink:0">
-      <input class="keyword-box" id="tag-add-input" placeholder="태그 입력 후 엔터..."
-        style="width:180px"
-        oncompositionstart="isComposing=true"
-        oncompositionend="isComposing=false"
-        onkeydown="if(event.key==='Enter'&&!isComposing)addTagFromInput()" />
-    </div>
+    <input class="keyword-box" id="tag-add-input" placeholder="태그 추가 (엔터)..."
+      style="width:160px;flex-shrink:0"
+      oncompositionstart="isComposing=true"
+      oncompositionend="isComposing=false"
+      onkeydown="if(event.key==='Enter'&&!isComposing)addTagToPool()" />
     <div id="tag-chips" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"></div>
   </div>
 </div>
@@ -410,7 +403,13 @@
         <label class="form-label">소속</label>
         <input class="form-input" id="f-affiliation" placeholder="소속 입력"/>
       </div>
-      <div class="form-row"><label class="form-label">태그 (쉼표로 구분)</label><input class="form-input" id="f-tags" placeholder="예: 전사, 인간, 주인공"/></div>
+      <div class="form-row">
+        <label class="form-label">태그</label>
+        <div style="width:100%">
+          <div id="f-tag-pool-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
+          <input class="form-input" id="f-tags" placeholder="직접 입력 (쉼표로 구분) 또는 위에서 선택" style="font-size:12px"/>
+        </div>
+      </div>
       <div class="form-row">
         <label class="form-label">스탯</label>
         <div class="stats-form">
@@ -448,6 +447,10 @@
 
 <script>
 const STORAGE_KEY = 'codex_chars_v2';
+const TAG_POOL_KEY = 'codex_tag_pool';
+
+function loadTagPool(){ try{ return JSON.parse(localStorage.getItem(TAG_POOL_KEY)||'[]'); }catch{ return []; } }
+function saveTagPool(){ try{ localStorage.setItem(TAG_POOL_KEY, JSON.stringify(tagPool)); }catch(e){ console.warn(e); } }
 const SKILL_TYPES = [
   { key:'passive',label:'패시브',      badge:'badge-normal', hasLevels:false, hidden:false },
   { key:'normal', label:'일반 공격',   badge:'badge-normal', hasLevels:false, hidden:false },
@@ -466,6 +469,7 @@ let nextId=chars.length?Math.max(...chars.map(c=>c.id))+1:1;
 let activeFilter='all',activeId=null,editMode=false,pendingImg='';
 let pendingSkillIcons={},formDescCache={},formSkillLevels={};
 let detailSkillLevels={},skillOpenState={};
+let tagPool=loadTagPool();
 
 /* ── STORAGE: IndexedDB for images, localStorage for text ── */
 const DB_NAME='codex_db', DB_VER=1, IMG_STORE='images';
@@ -877,6 +881,7 @@ function openAdd(){
   document.getElementById('f-img-preview').style.display='none';
   document.getElementById('f-img-url').value='';
   buildSkillForms(null);
+  renderFormTagPoolChips();
   document.getElementById('form-overlay').classList.add('open');
 }
 function openEdit(id){
@@ -909,6 +914,7 @@ function openEdit(id){
     urlInput.value='';
   }
   buildSkillForms(c.skills||emptySkills());
+  renderFormTagPoolChips();
   document.getElementById('form-overlay').classList.add('open');
 }
 function closeForm(){document.getElementById('form-overlay').classList.remove('open');}
@@ -989,38 +995,17 @@ async function saveChar(){
 }
 
 /* ── 키워드 하이라이트 & 자동 태그 ── */
-let currentKeyword = '';
 let isComposing = false;
-
-// 입력 중 실시간 하이라이트만
-function onKeywordHighlight(){
-  currentKeyword = document.getElementById('keyword-input').value.trim();
-  document.querySelectorAll('.skill-desc').forEach(el=>{
-    const raw = el.dataset.raw;
-    if(raw !== undefined){
-      el.innerHTML = raw ? renderSkillDesc(raw) : '<span class="empty">설명 없음</span>';
-    }
-  });
-}
-
-function onKeywordInput(){ onKeywordHighlight(); }
 function renderSkillDesc(text){
   if(!text) return '';
-  const tags = allTags();
-  if(!tags.length && !currentKeyword) return text;
+  const tags = [...new Set([...tagPool, ...allTags()])].sort((a,b)=>b.length-a.length);
+  if(!tags.length) return text;
 
-  // 태그와 키워드를 합쳐서 처리 (긴 것 우선 매칭)
-  const tagSet = new Set(tags);
-
-  // 텍스트를 문자 단위로 순회하며 태그/키워드 매칭
   let result = '';
   let i = 0;
   while(i < text.length){
-    // 태그 매칭 시도 (정확한 단어 일치)
     let matched = false;
-    // 긴 태그부터 시도
-    const sortedTags = [...tagSet].sort((a,b)=>b.length-a.length);
-    for(const tag of sortedTags){
+    for(const tag of tags){
       if(text.slice(i, i+tag.length) === tag){
         const safeTag = tag.replace(/'/g,"\\'");
         result += `<span class="skill-tag-badge" onclick="event.stopPropagation();setFilterAndClose('${safeTag}')" title="'${tag}' 태그 필터">${tag}</span>`;
@@ -1030,15 +1015,6 @@ function renderSkillDesc(text){
       }
     }
     if(matched) continue;
-
-    // 키워드 하이라이트 시도
-    if(currentKeyword && text.slice(i, i+currentKeyword.length) === currentKeyword){
-      result += `<span class="kw-highlight">${currentKeyword}</span>`;
-      i += currentKeyword.length;
-      continue;
-    }
-
-    // 일반 문자
     const ch = text[i];
     result += ch === '<' ? '&lt;' : ch === '>' ? '&gt;' : ch === '&' ? '&amp;' : ch;
     i++;
@@ -1227,44 +1203,78 @@ async function importData(input){
   }
 }
 
-/* ── 태그 직접 추가 ── */
-function addTagFromInput(){
+/* ── 태그 풀 관리 ── */
+function renderFormTagPoolChips(){
+  const el = document.getElementById('f-tag-pool-chips');
+  if(!el) return;
+  const allT = [...new Set([...tagPool, ...allTags()])].sort((a,b)=>a.localeCompare(b,'ko'));
+  if(!allT.length){ el.innerHTML='<span style="font-size:11px;color:var(--text3)">태그 풀 비어있음</span>'; return; }
+  const current = document.getElementById('f-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  el.innerHTML = allT.map(t=>{
+    const on = current.includes(t);
+    return `<span onclick="toggleFormTag('${t.replace(/'/g,"\\'")}')"
+      style="font-size:11px;padding:3px 9px;border-radius:20px;cursor:pointer;transition:all 0.15s;
+        background:${on?'var(--accent-glow)':'rgba(255,255,255,0.05)'};
+        color:${on?'var(--accent)':'var(--text3)'};
+        border:0.5px solid ${on?'var(--accent2)':'var(--border)'}">
+      ${t}
+    </span>`;
+  }).join('');
+}
+
+function toggleFormTag(tag){
+  const input = document.getElementById('f-tags');
+  let tags = input.value.split(',').map(t=>t.trim()).filter(Boolean);
+  if(tags.includes(tag)) tags = tags.filter(t=>t!==tag);
+  else tags.push(tag);
+  input.value = tags.join(', ');
+  renderFormTagPoolChips();
+}
+
+function addTagToPool(){
   const input = document.getElementById('tag-add-input');
   const tag = input.value.trim();
   if(!tag) return;
   input.value = '';
-  // 모든 캐릭터에 태그 추가 (이미 있으면 스킵)
-  let changed = false;
-  chars.forEach(c=>{
-    if(!c.tags.includes(tag)){
-      c.tags.push(tag);
-      changed = true;
-    }
-  });
-  if(changed){ saveChars(); renderFilters(); renderGrid(); }
-  renderTagChips();
+  if(!tagPool.includes(tag)){
+    tagPool.push(tag);
+    tagPool.sort((a,b)=>a.localeCompare(b,'ko'));
+    saveTagPool();
+    renderFilters();
+  }
+}
+
+function removeTagFromPool(tag){
+  tagPool = tagPool.filter(t=>t!==tag);
+  saveTagPool();
+  // 태그 풀에서 삭제해도 캐릭터의 태그는 유지
+  if(activeFilter===tag) activeFilter='all';
+  renderFilters();
+  renderGrid();
 }
 
 function renderTagChips(){
-  const tags = [...allTags()].sort((a,b)=>a.localeCompare(b,'ko'));
   const el = document.getElementById('tag-chips');
   if(!el) return;
-  if(!tags.length){ el.innerHTML='<span style="font-size:12px;color:var(--text3)">추가된 태그 없음</span>'; return; }
-  el.innerHTML = tags.map(t=>`
-    <span onclick="setFilterFromChip('${t.replace(/'/g,"\\'")}')"
-      style="font-size:12px;padding:4px 10px;border-radius:20px;cursor:pointer;transition:all 0.15s;
-        background:${activeFilter===t?'var(--accent-glow)':'rgba(255,255,255,0.05)'};
-        color:${activeFilter===t?'var(--accent)':'var(--text2)'};
-        border:0.5px solid ${activeFilter===t?'var(--accent2)':'var(--border)'}">
+  // 태그 풀 + 캐릭터 태그 모두 합쳐서 표시
+  const allT = [...new Set([...tagPool, ...allTags()])].sort((a,b)=>a.localeCompare(b,'ko'));
+  if(!allT.length){ el.innerHTML='<span style="font-size:12px;color:var(--text3)">태그 없음</span>'; return; }
+  el.innerHTML = allT.map(t=>{
+    const isActive = activeFilter===t;
+    return `<span onclick="setFilterFromChip('${t.replace(/'/g,"\\'")}')"
+      style="font-size:12px;padding:3px 10px;border-radius:20px;cursor:pointer;transition:all 0.15s;
+        background:${isActive?'var(--accent-glow)':'rgba(255,255,255,0.05)'};
+        color:${isActive?'var(--accent)':'var(--text2)'};
+        border:0.5px solid ${isActive?'var(--accent2)':'var(--border)'}">
       ${t}
-    </span>`).join('');
+    </span>`;
+  }).join('');
 }
 
 function setFilterFromChip(t){
   activeFilter = activeFilter===t ? 'all' : t;
   renderFilters();
   renderGrid();
-  renderTagChips();
 }
 function updateTestImg(url){
   const display = document.getElementById('img-test-display');
