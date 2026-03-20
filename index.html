@@ -271,6 +271,9 @@
     </div>
     <button class="tag-popup-btn" id="tag-popup-trigger" onclick="toggleTagPopup(event)">태그 목록 ▾</button>
     <button class="tag-popup-btn" onclick="openTagDelete()" style="color:var(--red);border-color:rgba(255,107,107,0.4)">태그 지우기</button>
+    <button class="btn-ghost" onclick="exportData()" style="white-space:nowrap">📤 내보내기</button>
+    <button class="btn-ghost" onclick="document.getElementById('f-import-json').click()" style="white-space:nowrap">📥 가져오기</button>
+    <input type="file" id="f-import-json" accept=".json" style="display:none" onchange="importData(this)"/>
     <button class="btn-ghost" onclick="openImport()" style="white-space:nowrap">엑셀 가져오기</button>
     <button class="add-btn" onclick="openAdd()">+ 추가</button>
   </div>
@@ -329,6 +332,20 @@
 </div>
 
 <div class="grid-wrap">
+  <!-- 이미지 테스트 영역 -->
+  <div id="img-test-area" style="margin-bottom:18px">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
+      <input class="form-input" id="img-test-url" placeholder="Confluence 이미지 URL 입력..."
+        style="flex:1" oninput="updateTestImg(this.value)" />
+      <button class="btn-ghost" onclick="clearTestImg()" style="font-size:12px;padding:7px 10px;white-space:nowrap">지우기</button>
+    </div>
+    <div id="img-test-display" style="display:none;width:400px;max-width:100%;border-radius:var(--radius-lg);overflow:hidden;background:var(--bg2);border:0.5px solid var(--border)">
+      <img id="img-test-img" src="" alt="테스트 이미지"
+        style="width:100%;height:auto;display:block"
+        onerror="onTestImgError()" onload="onTestImgLoad()" />
+      <div id="img-test-status" style="font-size:12px;padding:8px 12px;color:var(--text3)"></div>
+    </div>
+  </div>
   <div class="result-info" id="result-info"></div>
   <div class="grid" id="grid"></div>
 </div>
@@ -413,9 +430,17 @@
       </div>
       <div class="form-row">
         <label class="form-label">캐릭터 이미지</label>
-        <div class="img-upload-area" onclick="document.getElementById('f-img-input').click()">클릭해서 이미지 업로드<span style="font-size:11px;margin-top:4px;display:block">JPG · PNG · GIF · WEBP</span></div>
-        <input type="file" id="f-img-input" accept="image/*" style="display:none" onchange="handleImg(this)"/>
-        <img id="f-img-preview" class="img-preview"/>
+        <div style="display:flex;flex-direction:column;gap:8px;width:100%">
+          <div style="display:flex;gap:8px;align-items:center">
+            <div class="img-upload-area" style="flex:1;margin:0" onclick="document.getElementById('f-img-input').click()">클릭해서 이미지 업로드<span style="font-size:11px;margin-top:4px;display:block">JPG · PNG · GIF · WEBP</span></div>
+            <input type="file" id="f-img-input" accept="image/*" style="display:none" onchange="handleImg(this)"/>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input class="form-input" id="f-img-url" placeholder="또는 이미지 URL 입력 (Confluence 첨부 URL 등)..." oninput="handleImgUrl(this.value)" style="flex:1"/>
+            <button type="button" class="btn-ghost" onclick="clearImg()" style="white-space:nowrap;font-size:12px;padding:7px 10px">지우기</button>
+          </div>
+          <img id="f-img-preview" class="img-preview"/>
+        </div>
       </div>
       <div class="form-section-title">스킬</div>
       <div id="skill-forms"></div>
@@ -487,16 +512,18 @@ function dbDel(key){
 function charImgKey(id){return`char_img_${id}`;}
 function skillImgKey(id,sk){return`skill_img_${id}_${sk}`;}
 
-// save text data only (no images in localStorage)
+// save text data only (no base64 images in localStorage, but URL images are fine)
 function saveChars(){
   try{
     const slim=chars.map(c=>{
       const skills={};
       SKILL_TYPES.forEach(st=>{
         const s=c.skills?.[st.key]||emptySkill(st.key);
-        skills[st.key]={name:s.name,desc:s.desc};// no icon
+        skills[st.key]={name:s.name,desc:s.desc,cooltime:s.cooltime||0};
       });
-      return{...c,img:'__idb__',skills};
+      // URL 이미지는 그대로 저장, base64는 IDB에 따로 저장하므로 placeholder
+      const imgVal = c.img && c.img.startsWith('data:') ? '__idb__' : (c.img||'');
+      return{...c,img:imgVal,skills};
     });
     localStorage.setItem(STORAGE_KEY,JSON.stringify(slim));
   }catch(e){console.warn('saveChars:',e);}
@@ -505,8 +532,11 @@ function saveChars(){
 // after loadChars, load images from IDB and attach
 async function hydrateImages(){
   for(const c of chars){
-    const img=await dbGet(charImgKey(c.id)).catch(()=>null);
-    if(img) c.img=img;
+    // URL 이미지는 이미 로드됨, base64만 IDB에서 복원
+    if(!c.img || c.img === '__idb__'){
+      const img=await dbGet(charImgKey(c.id)).catch(()=>null);
+      if(img) c.img=img;
+    }
     for(const st of SKILL_TYPES){
       const icon=await dbGet(skillImgKey(c.id,st.key)).catch(()=>null);
       if(icon && c.skills?.[st.key]) c.skills[st.key].icon=icon;
@@ -855,6 +885,7 @@ function openAdd(){
   document.getElementById('f-class').value='';
   document.getElementById('f-attribute').value='';
   document.getElementById('f-img-preview').style.display='none';
+  document.getElementById('f-img-url').value='';
   buildSkillForms(null);
   document.getElementById('form-overlay').classList.add('open');
 }
@@ -878,7 +909,15 @@ function openEdit(id){
   document.getElementById('f-mag').value=c.mag||0;
   document.getElementById('f-lck').value=c.lck||0;
   const prev=document.getElementById('f-img-preview');
-  if(c.img){prev.src=c.img;prev.style.display='block';}else{prev.style.display='none';}
+  const urlInput=document.getElementById('f-img-url');
+  if(c.img){
+    prev.src=c.img;prev.style.display='block';
+    // URL 이미지면 URL 필드에 복원, base64면 비워둠
+    urlInput.value=c.img.startsWith('data:') ? '' : c.img;
+  } else {
+    prev.style.display='none';
+    urlInput.value='';
+  }
   buildSkillForms(c.skills||emptySkills());
   document.getElementById('form-overlay').classList.add('open');
 }
@@ -887,8 +926,26 @@ function closeForm(){document.getElementById('form-overlay').classList.remove('o
 function handleImg(input){
   const file=input.files[0];if(!file)return;
   const r=new FileReader();
-  r.onload=e=>{pendingImg=e.target.result;const p=document.getElementById('f-img-preview');p.src=pendingImg;p.style.display='block';};
+  r.onload=e=>{
+    pendingImg=e.target.result;
+    const p=document.getElementById('f-img-preview');
+    p.src=pendingImg;p.style.display='block';
+    document.getElementById('f-img-url').value='';
+  };
   r.readAsDataURL(file);
+}
+function handleImgUrl(url){
+  if(!url.trim()){ pendingImg=''; document.getElementById('f-img-preview').style.display='none'; return; }
+  pendingImg=url.trim();
+  const p=document.getElementById('f-img-preview');
+  p.src=pendingImg;p.style.display='block';
+}
+function clearImg(){
+  pendingImg='';
+  const p=document.getElementById('f-img-preview');
+  p.src='';p.style.display='none';
+  document.getElementById('f-img-url').value='';
+  document.getElementById('f-img-input').value='';
 }
 
 function collectSkills(){
@@ -1095,10 +1152,123 @@ function confirmTagDelete(){
   closeTagDelete();
 }
 
+/* ── 데이터 내보내기 / 가져오기 ── */
+function exportData(){
+  const exportChars = chars.map(c=>{
+    const skills = {};
+    SKILL_TYPES.forEach(st=>{
+      const sk = c.skills?.[st.key] || emptySkill(st.key);
+      skills[st.key] = {name:sk.name, desc:sk.desc, cooltime:sk.cooltime||0};
+    });
+    return {
+      id:c.id, name:c.name, title:c.title, rarity:c.rarity,
+      charClass:c.charClass, attribute:c.attribute, affiliation:c.affiliation,
+      charDisplayId:c.charDisplayId, excelCharId:c.excelCharId,
+      tags:c.tags, atk:c.atk, def:c.def, hp:c.hp, spd:c.spd, mag:c.mag, lck:c.lck,
+      img: c.img && !c.img.startsWith('data:') ? c.img : '',
+      skills,
+    };
+  });
+
+  const json = JSON.stringify({version:2, exportedAt: new Date().toISOString(), chars: exportChars}, null, 2);
+  const filename = `캐릭터도감_${new Date().toLocaleDateString('ko-KR').replace(/\./g,'').replace(/ /g,'-')}.json`;
+
+  try {
+    // 방법 1: Blob + createObjectURL
+    const blob = new Blob([json], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  } catch(e) {
+    try {
+      // 방법 2: data URI
+      const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+      const a = document.createElement('a');
+      a.href = dataUri; a.download = filename;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+    } catch(e2) {
+      // 방법 3: 새 창에 텍스트로 출력 (복사해서 저장)
+      const w = window.open('', '_blank');
+      if(w){
+        w.document.write('<pre style="word-break:break-all;white-space:pre-wrap;font-size:12px">' + json.replace(/</g,'&lt;') + '</pre>');
+        w.document.title = filename;
+        alert('새 창이 열렸어요. 내용을 전체 선택(Ctrl+A) 후 복사해서 .json 파일로 저장해주세요.');
+      } else {
+        alert('다운로드가 차단됐어요. 팝업 허용 후 다시 시도해주세요.');
+      }
+    }
+  }
+}
+
+async function importData(input){
+  const file = input.files[0];
+  if(!file) return;
+  input.value = '';
+  const text = await file.text();
+  try{
+    const data = JSON.parse(text);
+    const importedChars = data.chars || (Array.isArray(data) ? data : null);
+    if(!importedChars){ alert('올바른 도감 파일이 아닙니다.'); return; }
+
+    if(!confirm(`${importedChars.length}명의 캐릭터를 가져옵니다.\n현재 데이터를 덮어씁니다. 계속할까요?`)) return;
+
+    // 기존 IDB 이미지 모두 삭제
+    for(const c of chars) await deleteCharImages(c.id).catch(()=>{});
+
+    chars = importedChars.map(c=>({...c, img: c.img && c.img.startsWith('data:') ? c.img : (c.img||'')}));
+    nextId = chars.length ? Math.max(...chars.map(c=>c.id))+1 : 1;
+
+    // IDB에 이미지 저장
+    for(const c of chars){
+      if(c.img && c.img.startsWith('data:')) await dbPut(charImgKey(c.id), c.img).catch(()=>{});
+      for(const st of SKILL_TYPES){
+        const icon = c.skills?.[st.key]?.icon;
+        if(icon && icon.startsWith('data:')) await dbPut(skillImgKey(c.id, st.key), icon).catch(()=>{});
+      }
+      // 저장 후 img는 URL이 아닌 base64는 IDB 참조로 교체
+      if(c.img && c.img.startsWith('data:')) c.img = c.img; // 메모리엔 유지
+    }
+
+    saveChars();
+    await hydrateImages();
+    renderFilters();
+    renderGrid();
+    alert(`✓ ${chars.length}명의 캐릭터를 가져왔습니다.`);
+  } catch(e){
+    alert('파일 파싱 오류: ' + e.message);
+  }
+}
+
+/* ── 이미지 테스트 영역 ── */
+function updateTestImg(url){
+  const display = document.getElementById('img-test-display');
+  const img = document.getElementById('img-test-img');
+  const status = document.getElementById('img-test-status');
+  if(!url.trim()){ display.style.display='none'; return; }
+  display.style.display='block';
+  status.textContent='로딩 중...';
+  status.style.color='var(--text3)';
+  img.src = url.trim();
+}
+function onTestImgLoad(){
+  document.getElementById('img-test-status').textContent='✓ 이미지 로드 성공 — 팀원에게도 보입니다!';
+  document.getElementById('img-test-status').style.color='var(--teal)';
+}
+function onTestImgError(){
+  document.getElementById('img-test-status').textContent='✕ 이미지 로드 실패 — 이 URL은 외부에서 접근이 차단됩니다.';
+  document.getElementById('img-test-status').style.color='var(--red)';
+}
+function clearTestImg(){
+  document.getElementById('img-test-url').value='';
+  document.getElementById('img-test-display').style.display='none';
+}
+
 function overlayClickClose(e,id){if(e.target===document.getElementById(id))document.getElementById(id).classList.remove('open');}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDetail();closeForm();closeImport();closeTagDelete();}});
-
-/* ── EXCEL SKILL DATA (브라우저에서 xlsx 업로드로 갱신 가능) ── */
 let EXCEL_SKILL_DATA = {"1070":{"charId":1070,"passiveName":"나만 바라봐","normalName":"레몬 기본공격","quickName":"깡총깡총","quick2Name":"깡총깡총","activeName":"거기 비켜줄래?","ultName":"잠깐 주목!","passiveDesc":"자신에게공격력 증가 효과를 부여하고, 일반 공격에 피격 당한 적에게 1턴 동안 공격력 감소 효과를 부여합니다.","normalDesc":"PC 70번 기본 공격 설명","quickDesc":"2M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","quick2Desc":"자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (1X9M)에 관통형 투사체를 총 6발 발사하여투사체에 피격된 적에게 100% 피해를 줍니다.","ultDesc":"자신을 중심으로 전방 직선 범위 (1X9M)내적에게 100% 피해를 주고, 1턴 동안 정신분열 효과를 부여합니다.","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"1071":{"charId":1071,"passiveName":"자연의 약속","normalName":"엔데 기본공격","quickName":"숲의 숨결","quick2Name":"숲의 숨결","activeName":"번창하는 숲","ultName":"봄바람 춤사위","passiveDesc":"자신을 포함한 아군에게AP 증가 효과를 부여합니다.","normalDesc":"PC 71번 기본 공격 설명","quickDesc":"2M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 공격력 증가 효과를 부여하고, 이동 완료 시 자신을 제외한 자신을 중심으로 원형 범위 (2M) 내 아군의 체력을 자신의 최대 체력에 비례하여 회복 시킵니다.","quick2Desc":"자신에게 1턴 동안 공격력 증가 효과를 부여하고, 이동 완료 시 자신을 제외한 자신을 중심으로 원형 범위 (2M) 내 아군의 체력을 자신의 최대 체력에 비례하여 회복 시킵니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (1X8M)내 적에게 450% 피해를 주고, 2턴 동안 속박효과를 부여합니다.","ultDesc":"3초간 캐스팅 후 원형 범위 (3M) 내 적에게 450% 피해를 입힌 후, 아군의 체력을 자신의 최대 체력에 비례하여 회복 시키고, 1턴 동안 AP 증가효과와 공격 속도 증가 효과를 부여합니다.","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":3},"1072":{"charId":1072,"passiveName":"게르마늄 팔찌의 효능","normalName":"티에리아 기본공격","quickName":"바이오리듬","quick2Name":"바이오리듬","activeName":"피라미드 파워","ultName":"홀리얼 엔진 Ver5.32 강제 실행","passiveDesc":"자신을 포함한 아군에게방어력 증가 효과를 부여합니다.","normalDesc":"PC 72번 기본 공격 설명","quickDesc":"5M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 자신의 방어력과 비례하는보호막 효과를 부여합니다.","quick2Desc":"자신에게 1턴 동안 자신의 방어력과 비례하는보호막 효과를 부여합니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (1X7M)내 적을 자신 전방으로 끌어옴니다.","ultDesc":"자신에게방어력 증가 효과를 부여합니다.","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"1073":{"charId":1073,"passiveName":"최속의 닌자","normalName":"이츠카 기본공격","quickName":"이츠카식 전광석화","quick2Name":"이츠카식 전광석화","activeName":"이츠카식 질풍신뢰","ultName":"이츠카식 섬광베기","passiveDesc":"자신을 포함한 아군에게공격 속도 증가 효과를 부여합니다.","normalDesc":"PC 73 기본 공격 설명","quickDesc":"3M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 자신에게일반 공격 피해 증가 효과를 부여합니다.","quick2Desc":"1턴 동안 자신에게일반 공격 피해 증가 효과를 부여합니다.","activeDesc":"7M 내 지정한 위치로 돌진 하며 경로 내 충돌한 적에게 피해를 줍니다.","ultDesc":"대상을 한 명 지정하여 최대 7번의 피해를 줍니다.","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"1074":{"charId":1074,"passiveName":"당근 쪼아해?","normalName":"뉴 기본공격","quickName":"피망도 머거!","quick2Name":"피망도 머거!","activeName":"맛있는 소스야!","ultName":"손으로 머그면 안돼!","passiveDesc":"일반공격의 피해를 받은 대상을 중심으로 원형 범위3M의 적에게 피해를 줍니다.","normalDesc":"PC 74 기본 공격 설명","quickDesc":"6M 내 지정한 위치로 돌진 후, 동시에 두 개의 투사체를 발사 합니다.","quick2Desc":"동시에 두 개의 투사체를 발사 합니다.","activeDesc":"선택한 영역을 중심으로 초승달 범위(3~6M)의 적에게 피해를 주고, 0.5M 후방으로넉백시킵니다.","ultDesc":"선택한 영역을 중심으로 원형 범위(2.5M)의 적에게 피해를 주고, 2턴동안 방어력 감소 효과를 부여합니다.","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"11030":{"charId":11030,"passiveName":"특이체질","normalName":"카르티엘라 기본공격","quickName":"흩날리는 본능","quick2Name":"흩날리는 본능","activeName":"좋은 거리감","ultName":"해방을 위해!","passiveDesc":"3회 스킬 사용 시, 2턴 동안 자신에게 공격력 증가 효과를 부여합니다.","normalDesc":"PC 1030 기본 공격 설명","quickDesc":"5M 내 지정한 위치로 돌진 후,1턴 동안 자신에게 공격속도 증가 효과를 부여합니다.","quick2Desc":"1턴 동안 자신에게 공격속도 증가 효과를 부여합니다.","activeDesc":"자신을 중심으로 전방(6MX1M)의 모든 적에게 피해를 주고, 가장 먼 스킬범위 까지 넉백 효과를 부여합니다.","ultDesc":"자신을 중심으로 전방(6M)의 모든 적군에게 공격력의 300%관통피해를 주고, 해당 위치에 창을 소환하여 공격력의 150%대미지를 5회 부여합니다.","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"11040":{"charId":11040,"passiveName":"베스타 패시브 스킬","normalName":"베스타 기본공격","quickName":"베스타 퀵 스킬","quick2Name":"베스타 퀵 스킬2","activeName":"베스타 액티브 스킬","ultName":"베스타 궁극기 스킬","passiveDesc":"자신에게공격력 증가 효과를 부여하고, 일반 공격에 피격 당한 적에게 1턴 동안 공격력 감소 효과를 부여합니다.","normalDesc":"PC 70번 기본 공격 설명","quickDesc":"2M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","quick2Desc":"자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (1X9M)에 관통형 투사체를 총 6발 발사하여투사체에 피격된 적에게 100% 피해를 줍","ultDesc":"자신을 중심으로 전방 직선 범위 (1X9M)내적에게 100% 피해를 주고, 1턴 동","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":3},"11050":{"charId":11050,"passiveName":"기운 내!","normalName":"에스텔 기본 공격","quickName":"내가 도와줄게!","quick2Name":"내가 도와줄게!","activeName":"이제 괜찮을거야!","ultName":"다치면 안돼!","passiveDesc":"전투 시작 시 기준 자신을 제외한 아군 중 방어력이 가장 높은 대상 한 명에게 받는 피해 감소 효과를 부여합니다.","normalDesc":"PC 1050번 기본 공격 설명","quickDesc":"3M 내 지정한 위치로 돌진하며, 총돌한 적에게공격력 비례 피해 효과를 부여합니다.","quick2Desc":"자신을 중심으로 전방 직선 범위 (1X9M)에적에게 100% 피해를 줍니다.","activeDesc":"자신을 중심으로 원형 범위 (7M)내지정한 아군 한 명에게 3턴동안 방어력 증가 효과를 부여합니다.","ultDesc":"선택한 영역을 중심으로 원형 범위(3M)의 아군에게  2턴동안 보호막 효과를 부여합니다.","passiveCool":1,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"11070":{"charId":11070,"passiveName":"자~ 치즈","normalName":"마야 기본공격","quickName":"완벽한 각도","quick2Name":"완벽한 각도","activeName":"행복의 프레임","ultName":"풀샷","passiveDesc":"자신이 스킬로 동시에 2명 이상의 적에게 피해를 부여할 시 발동, 자신에게 1턴동안 속도 증가 효과를 부여합니다.","normalDesc":"PC 1070 기본 공격 설명","quickDesc":"3M 내 지정한 위치로 돌진하며, 총돌한 적에게공격력 비례 피해 효과를 부여합니다.","quick2Desc":"자신을 중심으로 전방 직선 범위 (1X6M)에적에게 100% 피해를 줍니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (2X9M)에적에게 100% 피해를 주고, 자신에게 해당 스킬로 피해를 입힌 적의 수에 비례한 만큼 유지되는 공격력 증가 증가 효과를 부여합니다.","ultDesc":"원형 범위 (3M)  내 적에 100% 피해를 주고, 2턴동안 받는 스킬 피해 증가 효과를 부여합니다.","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"11080":{"charId":11080,"passiveName":"희열","normalName":"리버 일반공격","quickName":"정면돌파!","quick2Name":"정면돌파!","activeName":"화끈하게 가보자고!","ultName":"콰앙~해버려!","passiveDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","normalDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","quickDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","quick2Desc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","activeDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","ultDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"11090":{"charId":11090,"passiveName":"라헬 패시브 스킬","normalName":"라헬 기본공격","quickName":"라헬 퀵 스킬","quick2Name":"라헬 퀵 스킬2","activeName":"라헬 액티브 스킬","ultName":"라헬 궁극기 스킬","passiveDesc":"자신에게공격력 증가 효과를 부여하고, 일반 공격에 피격 당한 적에게 1턴 동안 공격력 감소 효과를 부여합니다.","normalDesc":"PC 70번 기본 공격 설명","quickDesc":"2M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","quick2Desc":"자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (1X9M)에 관통형 투사체를 총 6발 발사하여투사체에 피격된 적에게 100% 피해를 줍","ultDesc":"자신을 중심으로 전방 직선 범위 (1X9M)내적에게 100% 피해를 주고, 1턴 동","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"11100":{"charId":11100,"passiveName":"수인의 재생력","normalName":"아스타로트 기본 공격","quickName":"막무가내 돌진","quick2Name":"막무가내 돌진","activeName":"겁쟁이의 수호","ultName":"쥐어짜낸 용기","passiveDesc":"전투 시작 시 기준 자신을 제외한 아군 중 방어력이 가장 높은 대상 한 명에게 받는 피해 감소 효과를 부여합니다.","normalDesc":"PC 1050번 기본 공격 설명","quickDesc":"3M 내 지정한 위치로 돌진하며, 총돌한 적에게공격력 비례 피해 효과를 부여합니다.","quick2Desc":"자신을 중심으로 전방 직선 범위 (1X9M)에적에게 100% 피해를 줍니다.","activeDesc":"자신을 중심으로 원형 범위 (7M)내지정한 아군 한 명에게 3턴동안 방어력 증가 효과를 부여합니다.","ultDesc":"선택한 영역을 중심으로 원형 범위(3M)의 아군에게  2턴동안 보호막 효과를 부여합니다.","passiveCool":3,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":3,"ultCool":4},"11140":{"charId":11140,"passiveName":"권력행사","normalName":"밀리아 기본 공격","quickName":"검거시작","quick2Name":"검거시작","activeName":"선제타격","ultName":"강제집행","passiveDesc":"상태이상 중의 적 공격 시, 추가 대미지 효과를 부여합니다.","normalDesc":"PC 1140 기본 공격 설명","quickDesc":"4M 내 지정한 위치로 돌진하며, 총돌한 적에게공격력 비례 피해를 줍니다.","quick2Desc":"자신을 중심으로 전방 직선 범위 (1X3M)에적에게 공격력 비례 피해를 줍니다.","activeDesc":"자신을 중심으로 원형 범위 (2M)의적에게 공격력 비례 피해를 주고, 1턴 동안 공격속도 감소 효과를 부여합니다.","ultDesc":"스킬범위 내 모든 적에게공격력 비례 피해를 주고, 넉백 효과를 부여합니다. 넉백된 적이 충돌 시, 1턴동안 기절 효과를 부여합니다.","passiveCool":3,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"11160":{"charId":11160,"passiveName":"릴리에 패시브 스킬","normalName":"릴리에 기본공격","quickName":"릴리에 퀵 스킬","quick2Name":"릴리에 퀵 스킬2","activeName":"릴리에 액티브 스킬","ultName":"릴리에 궁극기 스킬","passiveDesc":"자신에게공격력 증가 효과를 부여하고, 일반 공격에 피격 당한 적에게 1턴 동안 공격력 감소 효과를 부여합니다.","normalDesc":"PC 70번 기본 공격 설명","quickDesc":"2M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","quick2Desc":"자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (1X9M)에 관통형 투사체를 총 6발 발사하여투사체에 피격된 적에게 100% 피해를 줍","ultDesc":"자신을 중심으로 전방 직선 범위 (1X9M)내적에게 100% 피해를 주고, 1턴 동","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":3}};
 
 /* ── xlsx 파싱 (SheetJS) - TextKey 파일 & Skill_CS 파일 모두 지원 ── */
