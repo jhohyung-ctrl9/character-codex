@@ -17,7 +17,7 @@
     --radius: 10px; --radius-lg: 16px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-y: auto; }
 
   /* HEADER */
   header { border-bottom: 0.5px solid var(--border); padding: 0 32px; display: flex; align-items: center; justify-content: space-between; height: 60px; position: sticky; top: 0; background: rgba(14,14,18,0.92); backdrop-filter: blur(12px); z-index: 50; }
@@ -65,8 +65,19 @@
   .empty-state { grid-column: 1/-1; text-align: center; padding: 80px 20px; color: var(--text3); font-size: 14px; }
 
   /* OVERLAY */
+  @keyframes overlayFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes modalScaleUp {
+    from { opacity: 0; transform: scale(0.88); }
+    to   { opacity: 1; transform: scale(1); }
+  }
   .overlay { display: none; position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 16px; }
-  .overlay.open { display: flex; }
+  .overlay.open { display: flex; animation: overlayFadeIn 0.18s ease; }
+  .overlay.open > .detail-modal,
+  .overlay.open > .modal,
+  .overlay.open > .memento-edit-modal { animation: modalScaleUp 0.22s cubic-bezier(0.34,1.56,0.64,1) both; }
 
   /* DETAIL MODAL — split layout */
   .detail-modal {
@@ -74,12 +85,98 @@
     border: 0.5px solid var(--border2);
     border-radius: var(--radius-lg);
     width: 100%;
-    max-width: 960px;
+    max-width: 1160px;
     max-height: 92vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
   }
+
+  /* MEMENTO PANEL */
+  .memento-panel {
+    width: 200px;
+    flex-shrink: 0;
+    padding: 20px 0 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-self: flex-start;
+    position: sticky;
+    top: 0;
+  }
+  .memento-inner {
+    background: var(--bg3);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .memento-title {
+    font-size: 11px; color: var(--text3); letter-spacing: 0.08em;
+    text-transform: uppercase; font-weight: 700; flex-shrink: 0;
+  }
+  .memento-img-wrap {
+    width: 100%;
+    aspect-ratio: 3 / 5;
+    background: var(--bg2);
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 0.5px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .memento-img-wrap img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+  .memento-img-placeholder { font-size: 28px; opacity: 0.2; }
+  .memento-desc-text {
+    font-size: 12px; color: var(--text2); line-height: 1.75;
+    white-space: pre-wrap; min-height: 36px;
+  }
+  .memento-desc-text.empty { color: var(--text3); font-style: italic; }
+  .memento-edit-btn {
+    padding: 6px 0; font-size: 12px; font-family: inherit;
+    background: transparent; color: var(--text2);
+    border: 0.5px solid var(--border2);
+    border-radius: var(--radius); cursor: pointer; width: 100%;
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  .memento-edit-btn:hover { color: var(--text); border-color: var(--text3); }
+
+  /* MEMENTO EDIT MODAL */
+  .memento-edit-overlay {
+    display: none; position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center; padding: 16px;
+  }
+  .memento-edit-overlay.open { display: flex; }
+  .memento-edit-modal {
+    background: var(--bg2); border: 0.5px solid var(--border2);
+    border-radius: var(--radius-lg); width: 100%; max-width: 420px;
+    padding: 20px; display: flex; flex-direction: column; gap: 14px;
+  }
+  .memento-edit-header {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .memento-edit-title { font-size: 15px; font-weight: 700; }
+  .memento-edit-url {
+    width: 100%; padding: 9px 12px; background: var(--bg3);
+    border: 0.5px solid var(--border); border-radius: var(--radius);
+    color: var(--text); font-size: 13px; font-family: inherit; outline: none;
+    transition: border-color 0.2s;
+  }
+  .memento-edit-url:focus { border-color: var(--accent2); }
+  .memento-edit-url::placeholder { color: var(--text3); }
+  .memento-edit-desc {
+    width: 100%; min-height: 120px; padding: 9px 12px; background: var(--bg3);
+    border: 0.5px solid var(--border); border-radius: var(--radius);
+    color: var(--text); font-size: 13px; font-family: inherit;
+    line-height: 1.7; resize: vertical; outline: none;
+    transition: border-color 0.2s; scrollbar-width: thin;
+  }
+  .memento-edit-desc:focus { border-color: var(--accent2); }
+  .memento-edit-desc::placeholder { color: var(--text3); font-style: italic; }
+  .memento-edit-actions { display: flex; gap: 8px; justify-content: flex-end; }
   .detail-modal-header {
     display: flex; align-items: center; justify-content: space-between;
     padding: 14px 20px;
@@ -119,10 +216,10 @@
   .detail-char-img img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
   .detail-img-placeholder { font-size: 56px; opacity: 0.25; }
   .detail-rarity-badge { font-size: 16px; padding: 4px 14px; border-radius: 20px; font-weight: 700; }
-  .char-meta-panel { width: 100%; display: flex; flex-direction: column; gap: 8px; }
-  .char-meta-row { display: flex; flex-direction: column; gap: 3px; }
-  .char-meta-label { font-size: 16px; color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; }
-  .char-meta-value { font-size: 21px; font-weight: 500; color: var(--text); }
+  .char-meta-panel { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+  .char-meta-row { display: flex; flex-direction: column; gap: 2px; }
+  .char-meta-label { font-size: 10px; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; }
+  .char-meta-value { font-size: 13px; font-weight: 500; color: var(--text); }
   .char-meta-empty { color: var(--text3); font-style: italic; }
 
   /* RIGHT — scrollable content */
@@ -225,6 +322,7 @@
     .stats-form { grid-template-columns: 1fr 1fr; }
     .grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
     .detail-modal { max-width: 100%; }
+    .memento-panel { display: none; }
     .detail-left { width: 130px; padding: 14px 0 14px 14px; }
     .detail-char-img { width: 116px; height: 218px; }
     .detail-right { padding: 14px; }
@@ -360,13 +458,15 @@
 </div>
 
 <!-- DETAIL OVERLAY -->
-<div class="overlay" id="detail-overlay" onclick="overlayClickClose(event,'detail-overlay')"">
+<div class="overlay" id="detail-overlay" onclick="overlayClickClose(event,'detail-overlay')">
   <div class="detail-modal">
     <div class="detail-modal-header">
       <span class="modal-title" id="detail-title">캐릭터 정보</span>
       <button class="close-btn" onclick="closeDetail()">✕</button>
     </div>
     <div class="detail-modal-body">
+      <!-- 메멘토 정보 패널 -->
+      <div class="memento-panel" id="memento-panel"></div>
       <!-- 왼쪽 고정 이미지 -->
       <div class="detail-left" id="detail-left"></div>
       <!-- 오른쪽 스크롤 영역 -->
@@ -375,6 +475,28 @@
     <div class="detail-modal-footer">
       <button class="btn-danger" id="del-btn">삭제</button>
       <button class="btn-ghost" id="edit-btn">수정</button>
+    </div>
+  </div>
+</div>
+
+<!-- MEMENTO EDIT OVERLAY -->
+<div class="memento-edit-overlay" id="memento-edit-overlay" onclick="overlayClickClose(event,'memento-edit-overlay')">
+  <div class="memento-edit-modal" onclick="event.stopPropagation()">
+    <div class="memento-edit-header">
+      <span class="memento-edit-title">메멘토 정보 수정</span>
+      <button class="close-btn" onclick="closeMementoEdit()">✕</button>
+    </div>
+    <div>
+      <label class="form-label">메멘토 이미지 URL</label>
+      <input class="memento-edit-url" id="memento-edit-url-input" placeholder="이미지 URL 입력..."/>
+    </div>
+    <div>
+      <label class="form-label">메멘토 설명</label>
+      <textarea class="memento-edit-desc" id="memento-edit-desc-input" placeholder="메멘토 설명을 입력하세요..."></textarea>
+    </div>
+    <div class="memento-edit-actions">
+      <button class="btn-ghost" onclick="closeMementoEdit()">취소</button>
+      <button class="add-btn" onclick="confirmMementoEdit()">저장</button>
     </div>
   </div>
 </div>
@@ -540,7 +662,7 @@ function saveChars(){
       });
       // URL 이미지는 그대로 저장, base64는 IDB에 따로 저장하므로 placeholder
       const imgVal = c.img && c.img.startsWith('data:') ? '__idb__' : (c.img||'');
-      return{...c,img:imgVal,skills};
+      return{...c,img:imgVal,skills,mementoImg:c.mementoImg||'',mementoDesc:c.mementoDesc||''};
     });
     localStorage.setItem(STORAGE_KEY,JSON.stringify(slim));
   }catch(e){console.warn('saveChars:',e);}
@@ -731,6 +853,22 @@ function openDetail(id){
   const c=chars.find(x=>x.id===id);
   document.getElementById('detail-title').textContent=c.name;
 
+  // MEMENTO PANEL
+  const mImg = c.mementoImg || '';
+  const mDesc = c.mementoDesc || '';
+  document.getElementById('memento-panel').innerHTML=`
+    <div class="memento-inner">
+      <div class="memento-title">메멘토 정보</div>
+      <div class="memento-img-wrap">
+        ${mImg
+          ? `<img src="${mImg}" alt="메멘토 이미지"/>`
+          : `<div class="memento-img-placeholder">🖼</div>`}
+      </div>
+      <div class="memento-desc-text ${!mDesc ? 'empty' : ''}">${mDesc || '설명 없음'}</div>
+      <button class="memento-edit-btn" onclick="openMementoEdit(${c.id})">✎ 수정</button>
+    </div>
+  `;
+
   // LEFT — sticky image + meta info
   document.getElementById('detail-left').innerHTML=`
     <div class="detail-char-img">
@@ -820,6 +958,47 @@ function chDLv(key,delta,charId){
     d.innerHTML = desc ? renderSkillDesc(desc) : '설명 없음';
     d.classList.toggle('empty',!desc);
   }
+}
+
+// 메멘토 수정 모달 열기
+function openMementoEdit(id){
+  const c = chars.find(x=>x.id===id);
+  if(!c) return;
+  document.getElementById('memento-edit-url-input').value = c.mementoImg || '';
+  document.getElementById('memento-edit-desc-input').value = c.mementoDesc || '';
+  // 저장 버튼에 id 심기
+  document.querySelector('.memento-edit-overlay .add-btn').onclick = ()=>confirmMementoEdit(id);
+  document.getElementById('memento-edit-overlay').classList.add('open');
+}
+
+function closeMementoEdit(){
+  document.getElementById('memento-edit-overlay').classList.remove('open');
+}
+
+function confirmMementoEdit(id){
+  const urlVal  = document.getElementById('memento-edit-url-input').value.trim();
+  const descVal = document.getElementById('memento-edit-desc-input').value;
+  const idx = chars.findIndex(c=>c.id===id);
+  if(idx<0) return;
+  chars[idx].mementoImg  = urlVal;
+  chars[idx].mementoDesc = descVal;
+  saveChars();
+  closeMementoEdit();
+  // 패널 즉시 갱신
+  const mImg = urlVal;
+  const mDesc = descVal;
+  document.getElementById('memento-panel').innerHTML=`
+    <div class="memento-inner">
+      <div class="memento-title">메멘토 정보</div>
+      <div class="memento-img-wrap">
+        ${mImg
+          ? `<img src="${mImg}" alt="메멘토 이미지"/>`
+          : `<div class="memento-img-placeholder">🖼</div>`}
+      </div>
+      <div class="memento-desc-text ${!mDesc ? 'empty' : ''}">${mDesc || '설명 없음'}</div>
+      <button class="memento-edit-btn" onclick="openMementoEdit(${id})">✎ 수정</button>
+    </div>
+  `;
 }
 
 function closeDetail(){document.getElementById('detail-overlay').classList.remove('open');}
@@ -1167,6 +1346,8 @@ function exportData(){
       tags:c.tags, atk:c.atk, def:c.def, hp:c.hp, spd:c.spd, mag:c.mag, lck:c.lck,
       img: c.img && !c.img.startsWith('data:') ? c.img : '',
       skills,
+      mementoImg: c.mementoImg || '',
+      mementoDesc: c.mementoDesc || '',
     };
   });
 
@@ -1435,27 +1616,24 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDetail();close
 
 // 마우스 휠 스크롤 격리 — Confluence 페이지가 아닌 도감 내부만 스크롤
 document.addEventListener('wheel', e=>{
-  // 스크롤 가능한 요소 찾기
+  e.stopPropagation();
+  e.preventDefault();
+
+  // 스크롤 가능한 요소를 위에서부터 찾기 (팝업 내부 스크롤 등)
   let el = e.target;
   while(el && el !== document.body){
     const style = getComputedStyle(el);
     const overflow = style.overflow + style.overflowY;
-    const canScroll = /auto|scroll/.test(overflow);
-    if(canScroll && el.scrollHeight > el.clientHeight){
-      // 스크롤 한계에 도달했는지 확인
-      const atTop = el.scrollTop === 0 && e.deltaY < 0;
-      const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight && e.deltaY > 0;
-      if(!atTop && !atBottom){
-        e.stopPropagation();
-        return;
-      }
+    if(/auto|scroll/.test(overflow) && el.scrollHeight > el.clientHeight){
+      el.scrollTop += e.deltaY;
+      return;
     }
     el = el.parentElement;
   }
-  // 최상위 body/html도 스크롤 가능하면 격리
-  e.stopPropagation();
+  // 기본: body 스크롤
+  document.body.scrollTop += e.deltaY;
 }, {passive: false});
-let EXCEL_SKILL_DATA = {"1070":{"charId":1070,"passiveName":"나만 바라봐","normalName":"레몬 기본공격","quickName":"깡총깡총","quick2Name":"깡총깡총","activeName":"거기 비켜줄래?","ultName":"잠깐 주목!","passiveDesc":"자신에게공격력 증가 효과를 부여하고, 일반 공격에 피격 당한 적에게 1턴 동안 공격력 감소 효과를 부여합니다.","normalDesc":"PC 70번 기본 공격 설명","quickDesc":"2M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","quick2Desc":"자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (1X9M)에 관통형 투사체를 총 6발 발사하여투사체에 피격된 적에게 100% 피해를 줍니다.","ultDesc":"자신을 중심으로 전방 직선 범위 (1X9M)내적에게 100% 피해를 주고, 1턴 동안 정신분열 효과를 부여합니다.","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"1071":{"charId":1071,"passiveName":"자연의 약속","normalName":"엔데 기본공격","quickName":"숲의 숨결","quick2Name":"숲의 숨결","activeName":"번창하는 숲","ultName":"봄바람 춤사위","passiveDesc":"자신을 포함한 아군에게AP 증가 효과를 부여합니다.","normalDesc":"PC 71번 기본 공격 설명","quickDesc":"2M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 공격력 증가 효과를 부여하고, 이동 완료 시 자신을 제외한 자신을 중심으로 원형 범위 (2M) 내 아군의 체력을 자신의 최대 체력에 비례하여 회복 시킵니다.","quick2Desc":"자신에게 1턴 동안 공격력 증가 효과를 부여하고, 이동 완료 시 자신을 제외한 자신을 중심으로 원형 범위 (2M) 내 아군의 체력을 자신의 최대 체력에 비례하여 회복 시킵니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (1X8M)내 적에게 450% 피해를 주고, 2턴 동안 속박효과를 부여합니다.","ultDesc":"3초간 캐스팅 후 원형 범위 (3M) 내 적에게 450% 피해를 입힌 후, 아군의 체력을 자신의 최대 체력에 비례하여 회복 시키고, 1턴 동안 AP 증가효과와 공격 속도 증가 효과를 부여합니다.","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":3},"1072":{"charId":1072,"passiveName":"게르마늄 팔찌의 효능","normalName":"티에리아 기본공격","quickName":"바이오리듬","quick2Name":"바이오리듬","activeName":"피라미드 파워","ultName":"홀리얼 엔진 Ver5.32 강제 실행","passiveDesc":"자신을 포함한 아군에게방어력 증가 효과를 부여합니다.","normalDesc":"PC 72번 기본 공격 설명","quickDesc":"5M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 자신의 방어력과 비례하는보호막 효과를 부여합니다.","quick2Desc":"자신에게 1턴 동안 자신의 방어력과 비례하는보호막 효과를 부여합니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (1X7M)내 적을 자신 전방으로 끌어옴니다.","ultDesc":"자신에게방어력 증가 효과를 부여합니다.","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"1073":{"charId":1073,"passiveName":"최속의 닌자","normalName":"이츠카 기본공격","quickName":"이츠카식 전광석화","quick2Name":"이츠카식 전광석화","activeName":"이츠카식 질풍신뢰","ultName":"이츠카식 섬광베기","passiveDesc":"자신을 포함한 아군에게공격 속도 증가 효과를 부여합니다.","normalDesc":"PC 73 기본 공격 설명","quickDesc":"3M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 자신에게일반 공격 피해 증가 효과를 부여합니다.","quick2Desc":"1턴 동안 자신에게일반 공격 피해 증가 효과를 부여합니다.","activeDesc":"7M 내 지정한 위치로 돌진 하며 경로 내 충돌한 적에게 피해를 줍니다.","ultDesc":"대상을 한 명 지정하여 최대 7번의 피해를 줍니다.","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"1074":{"charId":1074,"passiveName":"당근 쪼아해?","normalName":"뉴 기본공격","quickName":"피망도 머거!","quick2Name":"피망도 머거!","activeName":"맛있는 소스야!","ultName":"손으로 머그면 안돼!","passiveDesc":"일반공격의 피해를 받은 대상을 중심으로 원형 범위3M의 적에게 피해를 줍니다.","normalDesc":"PC 74 기본 공격 설명","quickDesc":"6M 내 지정한 위치로 돌진 후, 동시에 두 개의 투사체를 발사 합니다.","quick2Desc":"동시에 두 개의 투사체를 발사 합니다.","activeDesc":"선택한 영역을 중심으로 초승달 범위(3~6M)의 적에게 피해를 주고, 0.5M 후방으로넉백시킵니다.","ultDesc":"선택한 영역을 중심으로 원형 범위(2.5M)의 적에게 피해를 주고, 2턴동안 방어력 감소 효과를 부여합니다.","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"11030":{"charId":11030,"passiveName":"특이체질","normalName":"카르티엘라 기본공격","quickName":"흩날리는 본능","quick2Name":"흩날리는 본능","activeName":"좋은 거리감","ultName":"해방을 위해!","passiveDesc":"3회 스킬 사용 시, 2턴 동안 자신에게 공격력 증가 효과를 부여합니다.","normalDesc":"PC 1030 기본 공격 설명","quickDesc":"5M 내 지정한 위치로 돌진 후,1턴 동안 자신에게 공격속도 증가 효과를 부여합니다.","quick2Desc":"1턴 동안 자신에게 공격속도 증가 효과를 부여합니다.","activeDesc":"자신을 중심으로 전방(6MX1M)의 모든 적에게 피해를 주고, 가장 먼 스킬범위 까지 넉백 효과를 부여합니다.","ultDesc":"자신을 중심으로 전방(6M)의 모든 적군에게 공격력의 300%관통피해를 주고, 해당 위치에 창을 소환하여 공격력의 150%대미지를 5회 부여합니다.","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"11040":{"charId":11040,"passiveName":"베스타 패시브 스킬","normalName":"베스타 기본공격","quickName":"베스타 퀵 스킬","quick2Name":"베스타 퀵 스킬2","activeName":"베스타 액티브 스킬","ultName":"베스타 궁극기 스킬","passiveDesc":"자신에게공격력 증가 효과를 부여하고, 일반 공격에 피격 당한 적에게 1턴 동안 공격력 감소 효과를 부여합니다.","normalDesc":"PC 70번 기본 공격 설명","quickDesc":"2M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","quick2Desc":"자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (1X9M)에 관통형 투사체를 총 6발 발사하여투사체에 피격된 적에게 100% 피해를 줍","ultDesc":"자신을 중심으로 전방 직선 범위 (1X9M)내적에게 100% 피해를 주고, 1턴 동","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":3},"11050":{"charId":11050,"passiveName":"기운 내!","normalName":"에스텔 기본 공격","quickName":"내가 도와줄게!","quick2Name":"내가 도와줄게!","activeName":"이제 괜찮을거야!","ultName":"다치면 안돼!","passiveDesc":"전투 시작 시 기준 자신을 제외한 아군 중 방어력이 가장 높은 대상 한 명에게 받는 피해 감소 효과를 부여합니다.","normalDesc":"PC 1050번 기본 공격 설명","quickDesc":"3M 내 지정한 위치로 돌진하며, 총돌한 적에게공격력 비례 피해 효과를 부여합니다.","quick2Desc":"자신을 중심으로 전방 직선 범위 (1X9M)에적에게 100% 피해를 줍니다.","activeDesc":"자신을 중심으로 원형 범위 (7M)내지정한 아군 한 명에게 3턴동안 방어력 증가 효과를 부여합니다.","ultDesc":"선택한 영역을 중심으로 원형 범위(3M)의 아군에게  2턴동안 보호막 효과를 부여합니다.","passiveCool":1,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"11070":{"charId":11070,"passiveName":"자~ 치즈","normalName":"마야 기본공격","quickName":"완벽한 각도","quick2Name":"완벽한 각도","activeName":"행복의 프레임","ultName":"풀샷","passiveDesc":"자신이 스킬로 동시에 2명 이상의 적에게 피해를 부여할 시 발동, 자신에게 1턴동안 속도 증가 효과를 부여합니다.","normalDesc":"PC 1070 기본 공격 설명","quickDesc":"3M 내 지정한 위치로 돌진하며, 총돌한 적에게공격력 비례 피해 효과를 부여합니다.","quick2Desc":"자신을 중심으로 전방 직선 범위 (1X6M)에적에게 100% 피해를 줍니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (2X9M)에적에게 100% 피해를 주고, 자신에게 해당 스킬로 피해를 입힌 적의 수에 비례한 만큼 유지되는 공격력 증가 증가 효과를 부여합니다.","ultDesc":"원형 범위 (3M)  내 적에 100% 피해를 주고, 2턴동안 받는 스킬 피해 증가 효과를 부여합니다.","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"11080":{"charId":11080,"passiveName":"희열","normalName":"리버 일반공격","quickName":"정면돌파!","quick2Name":"정면돌파!","activeName":"화끈하게 가보자고!","ultName":"콰앙~해버려!","passiveDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","normalDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","quickDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","quick2Desc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","activeDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","ultDesc":"스킬을3회 사용 시 2턴 동안 공격력 증가 효과를 부여합니다.","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"11090":{"charId":11090,"passiveName":"라헬 패시브 스킬","normalName":"라헬 기본공격","quickName":"라헬 퀵 스킬","quick2Name":"라헬 퀵 스킬2","activeName":"라헬 액티브 스킬","ultName":"라헬 궁극기 스킬","passiveDesc":"자신에게공격력 증가 효과를 부여하고, 일반 공격에 피격 당한 적에게 1턴 동안 공격력 감소 효과를 부여합니다.","normalDesc":"PC 70번 기본 공격 설명","quickDesc":"2M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","quick2Desc":"자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (1X9M)에 관통형 투사체를 총 6발 발사하여투사체에 피격된 적에게 100% 피해를 줍","ultDesc":"자신을 중심으로 전방 직선 범위 (1X9M)내적에게 100% 피해를 주고, 1턴 동","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"11100":{"charId":11100,"passiveName":"수인의 재생력","normalName":"아스타로트 기본 공격","quickName":"막무가내 돌진","quick2Name":"막무가내 돌진","activeName":"겁쟁이의 수호","ultName":"쥐어짜낸 용기","passiveDesc":"전투 시작 시 기준 자신을 제외한 아군 중 방어력이 가장 높은 대상 한 명에게 받는 피해 감소 효과를 부여합니다.","normalDesc":"PC 1050번 기본 공격 설명","quickDesc":"3M 내 지정한 위치로 돌진하며, 총돌한 적에게공격력 비례 피해 효과를 부여합니다.","quick2Desc":"자신을 중심으로 전방 직선 범위 (1X9M)에적에게 100% 피해를 줍니다.","activeDesc":"자신을 중심으로 원형 범위 (7M)내지정한 아군 한 명에게 3턴동안 방어력 증가 효과를 부여합니다.","ultDesc":"선택한 영역을 중심으로 원형 범위(3M)의 아군에게  2턴동안 보호막 효과를 부여합니다.","passiveCool":3,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":3,"ultCool":4},"11140":{"charId":11140,"passiveName":"권력행사","normalName":"밀리아 기본 공격","quickName":"검거시작","quick2Name":"검거시작","activeName":"선제타격","ultName":"강제집행","passiveDesc":"상태이상 중의 적 공격 시, 추가 대미지 효과를 부여합니다.","normalDesc":"PC 1140 기본 공격 설명","quickDesc":"4M 내 지정한 위치로 돌진하며, 총돌한 적에게공격력 비례 피해를 줍니다.","quick2Desc":"자신을 중심으로 전방 직선 범위 (1X3M)에적에게 공격력 비례 피해를 줍니다.","activeDesc":"자신을 중심으로 원형 범위 (2M)의적에게 공격력 비례 피해를 주고, 1턴 동안 공격속도 감소 효과를 부여합니다.","ultDesc":"스킬범위 내 모든 적에게공격력 비례 피해를 주고, 넉백 효과를 부여합니다. 넉백된 적이 충돌 시, 1턴동안 기절 효과를 부여합니다.","passiveCool":3,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":4},"11160":{"charId":11160,"passiveName":"릴리에 패시브 스킬","normalName":"릴리에 기본공격","quickName":"릴리에 퀵 스킬","quick2Name":"릴리에 퀵 스킬2","activeName":"릴리에 액티브 스킬","ultName":"릴리에 궁극기 스킬","passiveDesc":"자신에게공격력 증가 효과를 부여하고, 일반 공격에 피격 당한 적에게 1턴 동안 공격력 감소 효과를 부여합니다.","normalDesc":"PC 70번 기본 공격 설명","quickDesc":"2M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","quick2Desc":"자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.","activeDesc":"자신을 중심으로 전방 직선 범위 (1X9M)에 관통형 투사체를 총 6발 발사하여투사체에 피격된 적에게 100% 피해를 줍","ultDesc":"자신을 중심으로 전방 직선 범위 (1X9M)내적에게 100% 피해를 주고, 1턴 동","passiveCool":0,"normalCool":0,"quickCool":1,"quick2Cool":1,"activeCool":2,"ultCool":3}};
+let EXCEL_SKILL_DATA = {"1070": {"charId": 1070, "passiveName": "나만 바라봐", "passiveDesc": "자신 및 자신을 중심으로 원형 범위 (7M)의 대상에게 효과 부여\n[자신]\n- 공격력 증가\n[모든 적군]\n- 공격력 감소", "passiveCool": 0, "normalName": "레몬 기본공격", "normalDesc": "PC 70번 기본 공격 설명", "normalCool": 0, "quickName": "깡총깡총", "quickDesc": "2M 내 지정한 위치로 돌진 후 자신에게 효과 부여\n[자신]\n- 공격 속도 증가 [1턴]\n- 모든 디버프 제거", "quickCool": 1, "quick2Name": "깡총깡총", "quick2Desc": "자신에게 효과 부여\n[자신]\n- 공격 속도 증가 [1턴]\n- 모든 디버프 제거", "quick2Cool": 1, "activeName": "거기 비켜줄래?", "activeDesc": "자신을 중심으로 전방 직선 범위 (1x9M)에 관통형 투사체를 총 6발 발사하여 대상에게 효과 부여\n[투사체에 피격된 적]\n- 시전자 공격력 비례 100% 피해", "activeCool": 2, "ultName": "잠깐 주목!", "ultDesc": "선택한 영역을 중심으로 원형 범위 (2.5M)의 대상에게 효과 부여\n[적]\n- 시전자 공격력 비례 900% 피해\n- 공격력 감소 [1턴]", "ultCool": 4}, "1071": {"charId": 1071, "passiveName": "자연의 약속", "passiveDesc": "자신을 포함한 아군에게 효과 부여\n[자신을 포함한 아군]\n- 받는 회복량 증가", "passiveCool": 0, "normalName": "엔데 기본공격", "normalDesc": "PC 71번 기본 공격 설명", "normalCool": 0, "quickName": "숲의 숨결", "quickDesc": "(2M) 내 지정한 위치로 이동 후 자신을 중심으로 원형 범위(2M) 아군에게 효과 부여\n[아군]\n- 시전자 최대 체력 비례 회복", "quickCool": 1, "quick2Name": "숲의 숨결", "quick2Desc": "자신을 제외한 자신을 중심으로 원형 범위 (2M) 내 아군에게 효과 부여\n[아군]\n- 시전자 최대 체력 비례 회복", "quick2Cool": 1, "activeName": "번창하는 숲", "activeDesc": "자신을 중심으로 전방 직선 범위 (1x8M)의 대상에게 효과 부여\n[적]\n- 시전자 공격력 비례 450% 피해\n- 속박 [2턴]", "activeCool": 2, "ultName": "봄바람 춤사위", "ultDesc": "3초 동안 정신 집중 후 원형 범위 (3M)의 대상에게 효과 부여\n[적]\n- 시전자 공격력 비례 450% 피해\n[아군]\n- 시전자 최대 체력 비례 회복\n- AP 증가 [1턴]\n- 공격 속도 증가 [1턴]", "ultCool": 3}, "1072": {"charId": 1072, "passiveName": "게르마늄 팔찌의 효능", "passiveDesc": "자신의 체력이 30% 이하로 떨어질 시 자신에게 효과 부여\n[자신]\n- 방어력 증가 [2턴]", "passiveCool": 0, "normalName": "티에리아 기본공격", "normalDesc": "PC 72번 기본 공격 설명", "normalCool": 0, "quickName": "바이오리듬", "quickDesc": "5M 내 지정한 위치로 돌진 후 자신에게 효과 부여\n[자신]\n- 시전자 방어력 비례 보호막 [1턴]", "quickCool": 1, "quick2Name": "바이오리듬", "quick2Desc": "자신에게 효과 부여\n[자신]\n- 시전자 방어력 비례 보호막 [1턴]", "quick2Cool": 1, "activeName": "피라미드 파워", "activeDesc": "자신을 중심으로 전방 직선 범위 (1x7M)의 대상에게 효과 부여\n[적]\n- 끌어옴", "activeCool": 2, "ultName": "홀리얼 엔진 Ver5.32 강제 실행", "ultDesc": "자신에게 효과 부여\n[자신]\n- 방어력 증가", "ultCool": 4}, "1073": {"charId": 1073, "passiveName": "최속의 닌자", "passiveDesc": "자신이 스킬을 사용할 때마다 자신에게 효과 부여\n[자신]\n- 공격 속도 증가 [최대 5중첩]\n- 공격력 증가 [최대 5중첩]", "passiveCool": 0, "normalName": "이츠카 기본공격", "normalDesc": "PC 73 기본 공격 설명", "normalCool": 0, "quickName": "이츠카식 전광석화", "quickDesc": "3M 내 지정한 위치로 돌진 후 자신에게 효과 부여\n[자신]\n- 일반 공격 피해 증가 [1턴]", "quickCool": 1, "quick2Name": "이츠카식 전광석화", "quick2Desc": "자신에게 효과 부여\n[자신]\n- 일반 공격 피해 증가 [1턴]", "quick2Cool": 1, "activeName": "이츠카식 질풍신뢰", "activeDesc": "7M 내 지정한 위치로 돌진하며 경로 내 충돌한 대상에게 효과 부여\n[충돌한 적]\n- 시전자 공격력 비례 450% 피해", "activeCool": 2, "ultName": "이츠카식 섬광베기", "ultDesc": "대상에게 효과 부여\n[지정한 적 1명]\n- 최대 7회 피해", "ultCool": 4}, "1074": {"charId": 1074, "passiveName": "당근 쪼아해?", "passiveDesc": "일반 공격 피해를 받은 대상을 중심으로 원형 범위 (3M)의 대상에게 효과 부여\n[적]\n- 시전자 공격력 비례 100% 피해", "passiveCool": 0, "normalName": "뉴 기본공격", "normalDesc": "PC 74 기본 공격 설명", "normalCool": 0, "quickName": "피망도 머거!", "quickDesc": "6M 내 지정한 위치로 돌진 후 자신에게 효과 부여\n[자신]\n- 공격속도 증가 [1턴]", "quickCool": 1, "quick2Name": "피망도 머거!", "quick2Desc": "자신에게 효과 부여\n[자신]\n- 공격속도 증가 [1턴]", "quick2Cool": 1, "activeName": "맛있는 소스야!", "activeDesc": "선택한 영역을 중심으로 부채꼴 범위 (60도, 7.5M)의 대상에게 효과 부여\n[적]\n- 시전자 공격력 비례 450% 피해\n- 밀쳐냄 [2M]", "activeCool": 2, "ultName": "손으로 머그면 안돼!", "ultDesc": "선택한 영역을 중심으로 원형 범위 (2.5M)의 대상에게 효과 부여\n[적]\n- 최대 3회 피해\n- 방어력 감소 [2턴]", "ultCool": 4}, "11030": {"charId": 11030, "passiveName": "특이체질", "passiveDesc": "3회 스킬 사용 시 자신에게 효과 부여\n[자신]\n- 공격력 증가 [2턴]", "passiveCool": 0, "normalName": "카르티엘라 기본공격", "normalDesc": "PC 1030 기본 공격 설명", "normalCool": 0, "quickName": "흩날리는 본능", "quickDesc": "5M 내 지정한 위치로 돌진 후 자신에게 효과 부여\n[자신]\n- 공격속도 증가 [1턴]", "quickCool": 1, "quick2Name": "흩날리는 본능", "quick2Desc": "자신에게 효과 부여\n[자신]\n- 공격속도 증가 [1턴]", "quick2Cool": 1, "activeName": "좋은 거리감", "activeDesc": "자신을 중심으로 전방 직선 범위 (1x6M)의 대상에게 효과 부여\n[모든 적]\n- 피해\n- 밀쳐냄 [최대 사거리까지]", "activeCool": 2, "ultName": "해방을 위해!", "ultDesc": "자신을 중심으로 전방 범위 (6M)의 대상에게 효과 부여\n[모든 적군]\n- 시전자 공격력 비례 300% 관통 피해\n- 해당 위치에 창 소환\n- 소환된 창이 시전자 공격력 비례 150% 피해를 [5회] 부여", "ultCool": 4}, "11040": {"charId": 11040, "passiveName": "베스타 패시브 스킬", "passiveDesc": "자신에게공격력 증가 효과를 부여하고, 일반 공격에 피격 당한 적에게 1턴 동안 공격력 감소 효과를 부여합니다.", "passiveCool": 0, "normalName": "베스타 기본공격", "normalDesc": "PC 70번 기본 공격 설명", "normalCool": 0, "quickName": "베스타 퀵 스킬", "quickDesc": "2M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.", "quickCool": 1, "quick2Name": "베스타 퀵 스킬2", "quick2Desc": "자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.", "quick2Cool": 1, "activeName": "베스타 액티브 스킬", "activeDesc": "자신을 중심으로 전방 직선 범위 (1X9M)에 관통형 투사체를 총 6발 발사하여투사체에 피격된 적에게 100% 피해를 줍", "activeCool": 2, "ultName": "베스타 궁극기 스킬", "ultDesc": "자신을 중심으로 전방 직선 범위 (1X9M)내적에게 100% 피해를 주고, 1턴 동", "ultCool": 3}, "11050": {"charId": 11050, "passiveName": "기운 내!", "passiveDesc": "전투 시작 시 자신을 제외한 아군 중 방어력이 가장 높은 1명에게 효과 부여\n[자신을 제외한 방어력이 가장 높은 아군 1명]\n- 받는 피해 감소", "passiveCool": 1, "normalName": "에스텔 기본 공격", "normalDesc": "PC 1050번 기본 공격 설명", "normalCool": 0, "quickName": "내가 도와줄게!", "quickDesc": "3M 내 지정한 위치로 돌진하며 충돌한 대상에게 효과 부여\n[충돌한 적]\n- 시전자 공격력 비례 100% 피해", "quickCool": 1, "quick2Name": "내가 도와줄게!", "quick2Desc": "자신을 중심으로 전방 직선 범위 (1x9M)의 대상에게 효과 부여\n[적]\n- 시전자 공격력 비례 100% 피해", "quick2Cool": 1, "activeName": "이제 괜찮을거야!", "activeDesc": "자신을 중심으로 원형 범위 (7M) 내 지정한 아군 1명에게 효과 부여\n[지정한 아군 1명]\n- 방어력 증가 [3턴]", "activeCool": 2, "ultName": "다치면 안돼!", "ultDesc": "선택한 영역을 중심으로 원형 범위 (3M)의 대상에게 효과 부여\n[아군]\n- 보호막 [2턴]", "ultCool": 4}, "11070": {"charId": 11070, "passiveName": "자~ 치즈", "passiveDesc": "자신이 스킬로 동시에 2명 이상의 적에게 피해를 부여할 시 자신에게 효과 부여\n[자신]\n- 속도 증가 [1턴]", "passiveCool": 0, "normalName": "마야 기본공격", "normalDesc": "PC 1070 기본 공격 설명", "normalCool": 0, "quickName": "완벽한 각도", "quickDesc": "3M 내 지정한 위치로 돌진하며 충돌한 대상에게 효과 부여\n[충돌한 적]\n- 시전자 공격력 비례 100% 피해", "quickCool": 1, "quick2Name": "완벽한 각도", "quick2Desc": "자신을 중심으로 전방 직선 범위 (1x6M)의 대상에게 효과 부여\n[적]\n- 시전자 공격력 비례 100% 피해", "quick2Cool": 1, "activeName": "행복의 프레임", "activeDesc": "자신을 중심으로 전방 직선 범위 (2x9M)의 대상에게 효과 부여\n[적]\n- 시전자 공격력 비례 100% 피해\n[자신]\n- 공격력 증가 [해당 스킬로 피해를 입힌 적의 수만큼]", "activeCool": 2, "ultName": "풀샷", "ultDesc": "원형 범위 (3M)의 대상에게 효과 부여\n[적]\n- 시전자 공격력 비례 100% 피해\n- 받는 스킬 피해 증가 [2턴]", "ultCool": 4}, "11080": {"charId": 11080, "passiveName": "희열", "passiveDesc": "자신의 턴 도달 시 지속피해 상태의 [적]이 있으면 자신에게 효과 부여\n[자신]\n- 공격력 증가 [1턴]", "passiveCool": 0, "normalName": "리버 일반공격", "normalDesc": "PC 1080 기본 공격 설명", "normalCool": 0, "quickName": "정면돌파!", "quickDesc": "4M 내 지정한 위치로 돌진하며 충돌한 대상에게 효과 부여\n[충돌한 적]\n- 시전자 공격력 비례 100% 피해", "quickCool": 1, "quick2Name": "정면돌파!", "quick2Desc": "자신을 중심으로 전방 직선 범위 (1x4M)의 대상에게 효과 부여\n[적]\n- 시전자 공격력 비례 100% 피해", "quick2Cool": 1, "activeName": "화끈하게 가보자고!", "activeDesc": "자신을 중심으로 전방 부채꼴 범위 (180도, 2.5M)의 대상에게 효과 부여\n[적]\n- 시전자 공격력 비례 300% 피해 [3회]\n- 대상이 지속피해 상태일 경우 추가 피해", "activeCool": 2, "ultName": "콰앙~해버려!", "ultDesc": "자신을 중심으로 전방 직선 범위 (2x6M)의 대상에게 효과 부여\n[적]\n- 시전자 공격력 비례 1200% 피해\n- 지속피해 [2턴]", "ultCool": 4}, "11090": {"charId": 11090, "passiveName": "라헬 패시브 스킬", "passiveDesc": "자신에게공격력 증가 효과를 부여하고, 일반 공격에 피격 당한 적에게 1턴 동안 공격력 감소 효과를 부여합니다.", "passiveCool": 0, "normalName": "라헬 기본공격", "normalDesc": "PC 70번 기본 공격 설명", "normalCool": 0, "quickName": "라헬 퀵 스킬", "quickDesc": "2M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.", "quickCool": 1, "quick2Name": "라헬 퀵 스킬2", "quick2Desc": "자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.", "quick2Cool": 1, "activeName": "라헬 액티브 스킬", "activeDesc": "자신을 중심으로 전방 직선 범위 (1X9M)에 관통형 투사체를 총 6발 발사하여투사체에 피격된 적에게 100% 피해를 줍", "activeCool": 2, "ultName": "라헬 궁극기 스킬", "ultDesc": "자신을 중심으로 전방 직선 범위 (1X9M)내적에게 100% 피해를 주고, 1턴 동", "ultCool": 4}, "11100": {"charId": 11100, "passiveName": "수인의 재생력", "passiveDesc": "자신의 체력이 30% 이하로 떨어질 시 자신에게 효과 부여\n[자신]\n- 최대 체력 비례 회복", "passiveCool": 3, "normalName": "아스타로트 기본 공격", "normalDesc": "PC 1100번 기본 공격 설명", "normalCool": 0, "quickName": "막무가내 돌진", "quickDesc": "3M 내 지정한 위치로 돌진하며 이동 완료 시 자신을 중심으로 원형 범위 (3M)의 대상에게 효과 부여\n[적]\n- 시전자 방어력 비례 100% 피해", "quickCool": 1, "quick2Name": "막무가내 돌진", "quick2Desc": "자신을 중심으로 원형 범위 (3M)의 대상에게 효과 부여\n[적]\n- 시전자 방어력 비례 100% 피해", "quick2Cool": 1, "activeName": "겁쟁이의 수호", "activeDesc": "자신을 중심으로 부채꼴 범위 (120도, 4M)의 대상에게 효과 부여\n[적]\n- 시전자 공격력 비례 100% 피해\n- 투사체 패링\n- 주는 스킬 피해 감소 [2턴]", "activeCool": 3, "ultName": "쥐어짜낸 용기", "ultDesc": "자신을 중심으로 원형 범위 (6M)의 대상에게 효과 부여\n[적]\n- 시선 집중\n[자신]\n- 받는 피해 감소 [2턴]", "ultCool": 4}, "11140": {"charId": 11140, "passiveName": "권력행사", "passiveDesc": "상태이상 중의 적 공격 시, 추가 대미지 효과를 부여합니다.", "passiveCool": 3, "normalName": "밀리아 기본 공격", "normalDesc": "PC 1140 기본 공격 설명", "normalCool": 0, "quickName": "검거시작", "quickDesc": "4M 내 지정한 위치로 돌진하며, 총돌한 적에게공격력 비례 피해를 줍니다.", "quickCool": 1, "quick2Name": "검거시작", "quick2Desc": "자신을 중심으로 전방 직선 범위 (1X3M)에적에게 공격력 비례 피해를 줍니다.", "quick2Cool": 1, "activeName": "선제타격", "activeDesc": "자신을 중심으로 원형 범위 (2M)의적에게 공격력 비례 피해를 주고, 1턴 동안 공격속도 감소 효과를 부여합니다.", "activeCool": 2, "ultName": "강제집행", "ultDesc": "스킬범위 내 모든 적에게공격력 비례 피해를 주고, 넉백 효과를 부여합니다. 넉백된 적이 충돌 시, 1턴동안 기절 효과를 부여합니다.", "ultCool": 4}, "11160": {"charId": 11160, "passiveName": "릴리에 패시브 스킬", "passiveDesc": "자신에게공격력 증가 효과를 부여하고, 일반 공격에 피격 당한 적에게 1턴 동안 공격력 감소 효과를 부여합니다.", "passiveCool": 0, "normalName": "릴리에 기본공격", "normalDesc": "PC 70번 기본 공격 설명", "normalCool": 0, "quickName": "릴리에 퀵 스킬", "quickDesc": "2M 내 지정한 위치로 돌진 후, 자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.", "quickCool": 1, "quick2Name": "릴리에 퀵 스킬2", "quick2Desc": "자신에게 1턴 동안 공격 속도 증가 효과를 부여하고, 자신의 모든 디버프를 제거 합니다.", "quick2Cool": 1, "activeName": "릴리에 액티브 스킬", "activeDesc": "자신을 중심으로 전방 직선 범위 (1X9M)에 관통형 투사체를 총 6발 발사하여투사체에 피격된 적에게 100% 피해를 줍", "activeCool": 2, "ultName": "릴리에 궁극기 스킬", "ultDesc": "자신을 중심으로 전방 직선 범위 (1X9M)내적에게 100% 피해를 주고, 1턴 동", "ultCool": 3}};
 
 /* ── xlsx 파싱 (SheetJS) - TextKey 파일 & Skill_CS 파일 모두 지원 ── */
 function parseXlsxFile(file){
@@ -1594,7 +1772,8 @@ function renderImportList(filterName, idFrom, idTo){
       (d.normalName||'').toLowerCase().includes(q) ||
       (d.quickName||'').toLowerCase().includes(q) ||
       (d.activeName||'').toLowerCase().includes(q) ||
-      (d.passiveName||'').toLowerCase().includes(q);
+      (d.passiveName||'').toLowerCase().includes(q) ||
+      (chars.find(c=>c.excelCharId===d.charId)?.name||'').toLowerCase().includes(q);
     return inRange && matchName;
   }).sort((a,b)=>a.charId-b.charId);
 
@@ -1615,7 +1794,7 @@ function renderImportList(filterName, idFrom, idTo){
     return`<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--border)">
       <div style="flex:1;min-width:0">
         <div style="font-size:11px;color:var(--text3);margin-bottom:2px">ID ${displayId}</div>
-        <div style="font-size:14px;font-weight:500">${d.normalName||'(기본공격 없음)'}</div>
+        <div style="font-size:14px;font-weight:500">${d.normalName ? d.normalName.replace(/\s*기본\s*공격.*$/, '').trim() || d.normalName : (chars.find(c=>c.excelCharId===d.charId)?.name || `캐릭터 ${d.charId}`)}</div>
         <div style="font-size:11px;color:var(--text3);margin-top:3px">
           패시브: ${d.passiveName||'-'} &nbsp;·&nbsp; 퀵: ${d.quickName||'-'} &nbsp;·&nbsp; 액티브: ${d.activeName||'-'} &nbsp;·&nbsp; 궁극기: ${d.ultName||'-'}
         </div>
@@ -1651,22 +1830,19 @@ function updateChar(charId){
   MAP.forEach(({key, nameF, descF, coolF})=>{
     skills[key].name = d[nameF] || '';
     skills[key].cooltime = d[coolF] || 0;
-    const existingDesc = skills[key].desc;
-    const hasCustomDesc = existingDesc && existingDesc.some(v=>v && v.trim());
-    if(!hasCustomDesc){
-      const desc = d[descF] || '';
-      const st = SKILL_TYPES.find(s=>s.key===key);
-      skills[key].desc = desc
-        ? (st.hasLevels ? Array(10).fill(desc) : [desc])
-        : (st.hasLevels ? Array(10).fill('') : ['']);
-    }
+    // 엑셀에 설명이 있으면 항상 덮어씀 (기존 설명 유지 조건 제거)
+    const desc = d[descF] || '';
+    const st = SKILL_TYPES.find(s=>s.key===key);
+    skills[key].desc = desc
+      ? (st.hasLevels ? Array(10).fill(desc) : [desc])
+      : (st.hasLevels ? Array(10).fill('') : ['']);
   });
 
   const idx = chars.findIndex(c=>c.id===existing.id);
   chars[idx] = {
     ...existing,
     // 갱신할 항목
-    name:    d.normalName || existing.name,
+    name:    (d.normalName ? d.normalName.replace(/\s*기본\s*공격.*$/, '').trim() || d.normalName : existing.name),
     skills,
     // 유지할 항목: img, charClass, attribute, affiliation, rarity, title, tags, stats
   };
@@ -1675,6 +1851,8 @@ function updateChar(charId){
   renderFilters();
   renderGrid();
   refreshImportList();
+  // 현재 열린 상세 모달이 이 캐릭터면 즉시 새로고침 (태그 하이라이트 포함)
+  if(activeId === existing.id) openDetail(existing.id);
 }
 
 function importChar(charId){
@@ -1706,7 +1884,7 @@ function importChar(charId){
   });
 
   const newChar = {
-    id: nextId++, name: d.normalName||`캐릭터 ${charId}`,
+    id: nextId++, name: (d.normalName ? d.normalName.replace(/\s*기본\s*공격.*$/, '').trim() || d.normalName : `캐릭터 ${charId}`),
     title:'', rarity:'', tags:[], img:'',
     atk:0, def:0, hp:0, spd:0, mag:0, lck:0,
     charDisplayId: deriveCharDisplayId(charId) || '',
